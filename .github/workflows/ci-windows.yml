@@ -86,14 +86,14 @@ jobs:
       working-directory: build/bin
       run: |
         echo "Running benchmarks..."
-        .\lockfree_benchmark.exe --benchmark_repetitions=3 --benchmark_report_aggregates_only=true
+        .\lockfree_benchmark.exe --light
     
     - name: Upload build artifacts
-      if: matrix.config == 'Release'
+      if: matrix.config == 'windows-release'
       uses: actions/upload-artifact@v4
       with:
         name: lockfree-windows-${{ matrix.arch }}
         path: |
-          build/bin/*.exe
-          build/bin/*.dll
+          build/windows-release/bin/*.exe
+          build/windows-release/bin/*.dll
         retention-days: 7

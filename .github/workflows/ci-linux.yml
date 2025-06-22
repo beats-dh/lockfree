@@ -94,7 +94,7 @@ jobs:
       working-directory: build/linux-release/bin
       run: |
         echo "Running benchmarks..."
-        ./lockfree_benchmark --benchmark_repetitions=3 --benchmark_report_aggregates_only=true
+        ./lockfree_benchmark --light
     
     - name: Upload build artifacts
       if: matrix.config == 'linux-release'

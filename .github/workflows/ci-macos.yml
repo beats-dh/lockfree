@@ -84,17 +84,17 @@ jobs:
     
     - name: Run benchmark (Release only)
       if: matrix.config == 'macos-release'
-      working-directory: build/bin
+      working-directory: build/macos-release/bin
       run: |
         echo "Running benchmarks..."
-        ./lockfree_benchmark --benchmark_repetitions=3 --benchmark_report_aggregates_only=true
+        ./lockfree_benchmark --light
     
     - name: Upload build artifacts
-      if: matrix.config == 'Release'
+      if: matrix.config == 'macos-release'
       uses: actions/upload-artifact@v4
       with:
         name: lockfree-macos-${{ matrix.arch }}
         path: |
-          build/bin/lockfree_benchmark
-          build/bin/lockfree_test
+          build/macos-release/bin/lockfree_benchmark
+          build/macos-release/bin/lockfree_test
         retention-days: 7
