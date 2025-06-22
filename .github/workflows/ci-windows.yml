@@ -83,7 +83,7 @@ jobs:
     
     - name: Run benchmark (Release only)
       if: matrix.config == 'windows-release'
-      working-directory: build/bin
+      working-directory: build/windows-release/bin
       run: |
         echo "Running benchmarks..."
         .\lockfree_benchmark.exe --light
