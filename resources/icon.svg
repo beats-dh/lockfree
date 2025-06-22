@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Background circle -->
+  <circle cx="128" cy="128" r="120" fill="#2563eb" stroke="#1e40af" stroke-width="4"/>
+  
+  <!-- Lock-free symbol: interconnected circles representing atomic operations -->
+  <g fill="#ffffff" opacity="0.9">
+    <!-- Central core -->
+    <circle cx="128" cy="128" r="20" fill="#fbbf24"/>
+    
+    <!-- Orbital rings representing lock-free operations -->
+    <circle cx="128" cy="128" r="50" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.6"/>
+    <circle cx="128" cy="128" r="80" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.4"/>
+    
+    <!-- Atomic nodes -->
+    <circle cx="178" cy="128" r="8" fill="#10b981"/>
+    <circle cx="78" cy="128" r="8" fill="#10b981"/>
+    <circle cx="128" cy="78" r="8" fill="#10b981"/>
+    <circle cx="128" cy="178" r="8" fill="#10b981"/>
+    
+    <!-- Diagonal nodes -->
+    <circle cx="163" cy="93" r="6" fill="#f59e0b"/>
+    <circle cx="93" cy="163" r="6" fill="#f59e0b"/>
+    <circle cx="93" cy="93" r="6" fill="#f59e0b"/>
+    <circle cx="163" cy="163" r="6" fill="#f59e0b"/>
+  </g>
+  
+  <!-- Speed lines indicating performance -->
+  <g stroke="#ffffff" stroke-width="2" opacity="0.3">
+    <line x1="40" y1="100" x2="60" y2="100"/>
+    <line x1="40" y1="128" x2="65" y2="128"/>
+    <line x1="40" y1="156" x2="60" y2="156"/>
+    
+    <line x1="196" y1="100" x2="216" y2="100"/>
+    <line x1="191" y1="128" x2="216" y2="128"/>
+    <line x1="196" y1="156" x2="216" y2="156"/>
+  </g>
+  
+  <!-- Text overlay -->
+  <text x="128" y="220" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#1e40af">LOCKFREE</text>
+</svg>

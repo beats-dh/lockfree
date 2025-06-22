@@ -8,10 +8,8 @@
 
 #ifdef _MSC_VER
 	#pragma warning(push)
-	// #pragma warning(disable : 4996)
-	// #pragma warning(disable : 4244)
-	// #pragma warning(disable : 4324)
-	// #pragma warning(disable : 4005)
+	#pragma warning(disable : 4996)  // Deprecated functions
+	#pragma warning(disable : 4324)  // Structure padded due to alignment specifier
 
 	#ifndef LOCKFREE_GNU_ATTRIBUTES_DEFINED
 		#define LOCKFREE_GNU_ATTRIBUTES_DEFINED
@@ -21,12 +19,34 @@
 		#define GNUFLATTEN
 		#define GNUNOINLINE __declspec(noinline)
 	#endif
+
+	// MSVC compatibility for no_unique_address
+	#if _MSC_VER >= 1929
+		#define LOCKFREE_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
+	#else
+		#define LOCKFREE_NO_UNIQUE_ADDRESS
+	#endif
 #else
 	#define GNUHOT [[gnu::hot]]
 	#define GNUCOLD [[gnu::cold]]
 	#define GNUALWAYSINLINE [[gnu::always_inline]] inline
 	#define GNUFLATTEN [[gnu::flatten]]
 	#define GNUNOINLINE [[gnu::noinline]]
+
+	// GCC/Clang compatibility for no_unique_address
+	#if defined(__has_cpp_attribute)
+		#if __has_cpp_attribute(no_unique_address) >= 201803L
+			#define LOCKFREE_NO_UNIQUE_ADDRESS [[no_unique_address]]
+		#else
+			#define LOCKFREE_NO_UNIQUE_ADDRESS
+		#endif
+	#else
+		#if __cplusplus >= 202002L
+			#define LOCKFREE_NO_UNIQUE_ADDRESS [[no_unique_address]]
+		#else
+			#define LOCKFREE_NO_UNIQUE_ADDRESS
+		#endif
+	#endif
 #endif
 
 #ifdef __AVX2__
@@ -161,7 +181,7 @@ public:
 		bool result = m_queue.try_push(obj);
 
 		if (result && m_shutdown_flag.load(std::memory_order_relaxed)) [[unlikely]] {
-			pointer temp = nullptr;
+			pointer temp;
 			if (m_queue.try_pop(temp) && temp == obj) {
 				return false;
 			}
@@ -490,7 +510,7 @@ public:
 	}
 
 private:
-	[[no_unique_address]] Allocator m_allocator;
+	LOCKFREE_NO_UNIQUE_ADDRESS Allocator m_allocator;
 	std::atomic<bool> m_shutdown_flag;
 
 	struct alignas(CACHE_LINE_SIZE) StatsBlock {
@@ -503,7 +523,7 @@ private:
 		std::atomic<size_t> cache_hits { 0 };
 		std::atomic<size_t> batch_operations { 0 };
 	};
-	[[no_unique_address]] std::conditional_t<EnableStats, StatsBlock, std::monostate> m_stats;
+	LOCKFREE_NO_UNIQUE_ADDRESS std::conditional_t<EnableStats, StatsBlock, std::monostate> m_stats;
 
 	alignas(CACHE_LINE_SIZE) atomic_queue::AtomicQueue<pointer, PoolSize> m_queue;
 
@@ -515,7 +535,7 @@ private:
 	 * initialized on-demand, avoiding static initialization order fiasco. The hash map
 	 * is thread-safe with internal mutexes and optimized for concurrent access.
 	 */
-	static auto &get_active_instances() {
+	static auto& get_active_instances() {
 		static phmap::parallel_flat_hash_map_m<OptimizedObjectPool*, std::chrono::steady_clock::time_point> instances;
 		return instances;
 	}
@@ -524,15 +544,26 @@ private:
 		size_t size = 0;
 		std::atomic<bool> valid { true };
 
-		static constexpr size_t METADATA_SIZE = sizeof(size_t) + sizeof(std::atomic<bool>);
-		static constexpr size_t EFFECTIVE_PADDING1 = (CACHE_LINE_SIZE - (METADATA_SIZE % CACHE_LINE_SIZE)) % CACHE_LINE_SIZE;
-		char padding1[EFFECTIVE_PADDING1] {};
+		// Use empty base optimization when no padding needed
+		struct PaddingBlock1 {
+			static constexpr size_t METADATA_SIZE = sizeof(size_t) + sizeof(std::atomic<bool>);
+			static constexpr size_t REMAINDER = METADATA_SIZE % CACHE_LINE_SIZE;
+			static constexpr size_t NEEDED = REMAINDER == 0 ? 0 : CACHE_LINE_SIZE - REMAINDER;
+
+			// Only add padding bytes if actually needed
+			std::conditional_t<NEEDED == 0, std::monostate, std::array<std::byte, NEEDED>> padding;
+		} padding_block1;
 
 		alignas(CACHE_LINE_SIZE) pointer data[LocalCacheSize];
 
-		static constexpr size_t DATA_SIZE = sizeof(pointer) * LocalCacheSize;
-		static constexpr size_t EFFECTIVE_PADDING2 = (CACHE_LINE_SIZE - (DATA_SIZE % CACHE_LINE_SIZE)) % CACHE_LINE_SIZE;
-		char padding2[EFFECTIVE_PADDING2] {};
+		struct PaddingBlock2 {
+			static constexpr size_t DATA_SIZE = sizeof(pointer) * LocalCacheSize;
+			static constexpr size_t REMAINDER = DATA_SIZE % CACHE_LINE_SIZE;
+			static constexpr size_t NEEDED = REMAINDER == 0 ? 0 : CACHE_LINE_SIZE - REMAINDER;
+
+			// Only add padding bytes if actually needed
+			std::conditional_t<NEEDED == 0, std::monostate, std::array<std::byte, NEEDED>> padding;
+		} padding_block2;
 
 		/**
 		 * @brief Check if thread cache is valid for operations
@@ -576,7 +607,7 @@ private:
 
 			std::vector<OptimizedObjectPool*> active_pools;
 			try {
-				auto &instances = get_active_instances();
+				auto& instances = get_active_instances();
 				active_pools.reserve(instances.size());
 				for (const auto &[pool, timestamp] : instances) {
 					active_pools.push_back(pool);

@@ -159,7 +159,7 @@ namespace benchmark {
 		/**
 		 * @brief Run all baseline benchmarks
 		 */
-		static void runBaselineBenchmarks(size_t ops = 10000) {
+		static void runBaselineBenchmarks(size_t ops = 1000000) {  // consistent with main_test_lockfree.cpp default
 			printSectionHeader("BASELINE ALLOCATION METHODS", 1);
 			std::cout << "Operations: " << ops << "\n\n";
 			

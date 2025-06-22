@@ -99,7 +99,13 @@ target_link_libraries(lockfree_object_pool INTERFACE
 )
 
 # Create main benchmark executable
-add_executable(lockfree_benchmark examples/main_test_lockfree.cpp)
+if(WIN32)
+    # Add Windows resource file for icon
+    add_executable(lockfree_benchmark examples/main_test_lockfree.cpp resources/app.rc)
+else()
+    add_executable(lockfree_benchmark examples/main_test_lockfree.cpp)
+endif()
+
 target_link_libraries(lockfree_benchmark PRIVATE 
     lockfree_object_pool
     benchmark::benchmark
@@ -120,8 +126,7 @@ if(WIN32)
         NOMINMAX
         _WIN32_WINNT=0x0A00  # Windows 10+
     )
-    # Set high performance power plan hint
-    target_link_libraries(lockfree_benchmark PRIVATE winmm)
+    # Windows-specific optimizations
 else()
     # Linux/Unix specific optimizations
     target_compile_definitions(lockfree_benchmark PRIVATE

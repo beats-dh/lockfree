@@ -135,11 +135,11 @@ namespace benchmark {
 		 * @brief Test multi-threaded scaling for a specific thread count
 		 */
 		static void benchmarkThreadCount(size_t threads, size_t ops_per_thread) {
-			std::cout << "\n" << std::string(90, '─') << "\n";
+			std::cout << "\n" << std::string(90, 0x2D) << "\n";
 			std::cout << "🧵 " << threads << " Thread" << (threads > 1 ? "s" : "")
 					  << " (" << ops_per_thread << " ops/thread, "
 					  << (threads * ops_per_thread) << " total ops):\n";
-			std::cout << std::string(90, '─') << "\n";
+			std::cout << std::string(90, 0x2D) << "\n";
 
 			// Reset baseline for this thread count
 			g_mt_baseline_avg_ms.clear();
@@ -170,7 +170,7 @@ namespace benchmark {
 		/**
 		 * @brief Run complete multi-threaded scaling analysis
 		 */
-		static void runMultiThreadedScalingAnalysis(size_t base_ops = 5000) {
+		static void runMultiThreadedScalingAnalysis(size_t base_ops = 500000) {  // consistent with main_benchmark.hpp multi_thread_base_ops
 			printSectionHeader("MULTI-THREADED SCALING ANALYSIS", 4);
 
 			auto thread_counts = generateThreadCounts();

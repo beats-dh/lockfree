@@ -17,7 +17,7 @@ namespace benchmark {
 			using PoolType = SharedOptimizedObjectPool<LargeTestObject, 
 				lockfree_config::DEFAULT_POOL_SIZE, true>; // Stats enabled
 			PoolType pool;
-			pool.prewarm(std::min(size_t(128), ops));
+			pool.prewarm(std::min(static_cast<size_t>(128), ops));
 
 			std::vector<double> times;
 			times.reserve(10);
@@ -173,7 +173,7 @@ namespace benchmark {
 		/**
 		 * @brief Run all single-threaded pool benchmarks
 		 */
-		static void runSingleThreadedPoolBenchmarks(size_t ops = 10000) {
+		static void runSingleThreadedPoolBenchmarks(size_t ops = 1000000) {  // consistent with main_test_lockfree.cpp default
 			printSectionHeader("POOL vs STANDARD SHARED_PTR ANALYSIS", 2);
 			std::cout << "Operations: " << ops << "\n\n";
 

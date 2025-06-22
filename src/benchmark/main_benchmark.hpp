@@ -138,7 +138,7 @@ namespace benchmark {
 		 */
 		static void runQuickIntegrationTest() {
 			std::cout << "\n🧪 INTEGRATION TEST:\n";
-			std::cout << std::string(50, '─') << "\n";
+			std::cout << std::string(50, 0x2D) << "\n";
 			
 			using TestPool = SharedOptimizedObjectPool<LargeTestObject, 64, true>;
 			TestPool test_pool;
@@ -206,18 +206,21 @@ namespace benchmark {
 
 		/**
 		 * @brief Run complete benchmark suite
+		 * @param single_thread_ops Number of operations for single-threaded tests
+		 * @param multi_thread_base_ops Base number of operations for multi-threaded tests
+		 * @param warmup_operations Number of warmup operations
 		 */
-		static void runCompleteBenchmarkSuite() {
+		static void runCompleteBenchmarkSuite(
+			size_t single_thread_ops = 1000000,
+			size_t multi_thread_base_ops = 500000,
+			size_t warmup_operations = 20000
+		) {
 			printHeader();
 			validateObjectSize();
 			printSystemInfo();
 
-			// Configuration
-			const size_t single_thread_ops = 1000000;
-			const size_t multi_thread_base_ops = 500000;
-
 			// Warmup
-			warmup(20000);
+			warmup(warmup_operations);
 
 			// Integration test
 			runQuickIntegrationTest();
@@ -246,17 +249,19 @@ namespace benchmark {
 
 		/**
 		 * @brief Run lightweight benchmark (for CI/CD)
+		 * @param light_ops Number of operations for lightweight tests
+		 * @param warmup_operations Number of warmup operations
 		 */
-		static void runLightweightBenchmark() {
+		static void runLightweightBenchmark(
+			size_t light_ops = 1000,
+			size_t warmup_operations = 20000
+		) {
 			printHeader();
 			std::cout << "Running lightweight benchmark for CI/CD...\n\n";
 
 			validateObjectSize();
-			warmup(500);
+			warmup(warmup_operations);
 			runQuickIntegrationTest();
-
-			// Reduced operations for faster execution
-			const size_t light_ops = 1000;
 
 			BaselineBenchmarks::runBaselineBenchmarks(light_ops);
 			PoolBenchmarks::runSingleThreadedPoolBenchmarks(light_ops);

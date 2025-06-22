@@ -7,13 +7,9 @@
 #include <memory>
 #include <iostream>
 #include <iomanip>
-#include <cstring>
 #include <memory_resource>
 #include <numeric>
-#include <cmath>
 #include <map>
-#include <string_view>
-#include <atomic>
 #include <algorithm>
 
 namespace benchmark {
@@ -39,7 +35,7 @@ namespace benchmark {
 			}
 			std::memcpy(m_buffer + m_size, data, len);
 			m_size += len;
-			const uint8_t* bytes = static_cast<const uint8_t*>(data);
+			const auto* bytes = static_cast<const uint8_t*>(data);
 			for (size_t i = 0; i < len; ++i) {
 				m_checksum ^= bytes[i];
 			}
@@ -62,14 +58,14 @@ namespace benchmark {
 			writeData(str, len);
 		}
 
-		size_t getSize() const noexcept { return m_size; }
-		uint32_t getChecksum() const noexcept { return m_checksum; }
+		[[nodiscard]] size_t getSize() const noexcept { return m_size; }
+		[[nodiscard]] uint32_t getChecksum() const noexcept { return m_checksum; }
 
 		// Thread ID support for the pool
 		int16_t threadId;
 
 	private:
-		uint8_t m_buffer[BUFFER_SIZE];
+		uint8_t m_buffer[BUFFER_SIZE]{};
 		size_t m_size;
 		uint32_t m_checksum;
 	};
@@ -177,7 +173,7 @@ namespace benchmark {
 		/**
 		 * @brief System warmup
 		 */
-		static void warmup(size_t ops = 1000) {
+		static void warmup(size_t ops = 20000) {  // consistent with main_test_lockfree.cpp default
 			std::cout << "🔥 Warming up system...\n";
 
 			std::vector<std::unique_ptr<LargeTestObject>> objects;
@@ -207,7 +203,7 @@ namespace benchmark {
 				std::cout << section_num << "️⃣ ";
 			}
 			std::cout << title << "\n";
-			std::cout << std::string(90, '═') << "\n";
+			std::cout << std::string(90, 0x3D) << "\n"; // '=' character
 		}
 
 		/**
@@ -215,7 +211,7 @@ namespace benchmark {
 		 */
 		static void printSubsectionHeader(const std::string& title) {
 			std::cout << "\n" << title << "\n";
-			std::cout << std::string(60, '─') << "\n";
+			std::cout << std::string(60, 0x2D) << "\n"; // '-' character
 		}
 
 		/**
@@ -223,7 +219,7 @@ namespace benchmark {
 		 */
 		static void validateObjectSize() {
 			std::cout << "\n📏 Object Size & Alignment Validation:\n";
-			std::cout << std::string(50, '─') << "\n";
+			std::cout << std::string(50, 0x2D) << "\n"; // '-' character
 			std::cout << "  sizeof(LargeTestObject): " << sizeof(LargeTestObject) << " bytes\n";
 			std::cout << "  Target size: ≥65535 bytes\n";
 			std::cout << "  Overhead: " << sizeof(LargeTestObject) - 65535 << " bytes\n";

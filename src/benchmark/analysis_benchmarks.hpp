@@ -506,8 +506,8 @@ namespace benchmark {
 			printSubsectionHeader("Memory Usage Analysis");
 
 			constexpr size_t obj_size = sizeof(LargeTestObject);
-			constexpr size_t kb = 1024;
-			constexpr size_t mb = kb * kb;
+			// constexpr size_t kb = 1024;
+			// constexpr size_t mb = kb * kb;
 
 			std::cout << "Object size:       " << obj_size << " bytes (~"
 					  << std::fixed << std::setprecision(1) << (obj_size / 1024.0) << " KB)\n";

@@ -7,7 +7,6 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#include <io.h>
 #include <fcntl.h>
 #endif
 
@@ -51,7 +50,7 @@ static void printUsage(const char* program_name) {
 	std::cout << "  --threadid          Run only ThreadId optimization tests\n";
 	std::cout << "  --ops <number>      Set number of operations (default: auto)\n";
 	std::cout << "  --threads <number>  Set max threads for testing (default: auto)\n";
-	std::cout << "  --warmup <number>   Set warmup operations (default: 2000)\n";
+	std::cout << "  --warmup <number>   Set warmup operations (default: 20000)\n";
 	std::cout << "\nExamples:\n";
 	std::cout << "  " << program_name << "                    # Run complete suite\n";
 	std::cout << "  " << program_name << " --light            # Quick test\n";
@@ -77,9 +76,16 @@ struct BenchmarkConfig {
 	} mode
 		= COMPLETE;
 
+	// Centralized benchmark constants
+	static constexpr size_t DEFAULT_SINGLE_THREAD_OPS = 100000;  // default ops for COMPLETE mode
+	static constexpr size_t DEFAULT_MULTI_THREAD_BASE_OPS = 50000;
+	static constexpr size_t DEFAULT_WARMUP_OPS = 10000;
+	static constexpr size_t DEFAULT_LIGHT_OPS = 1000;
+	static constexpr size_t DEFAULT_STRESS_OPS = 5000;
+
 	size_t ops = 0; // 0 = auto
 	size_t max_threads = 0; // 0 = auto
-	size_t warmup_ops = 20000;
+	size_t warmup_ops = DEFAULT_WARMUP_OPS;
 	bool show_help = false;
 };
 
@@ -136,13 +142,13 @@ static void runBenchmarkModule(const BenchmarkConfig &config) {
 	if (ops == 0) {
 		switch (config.mode) {
 			case BenchmarkConfig::LIGHT:
-				ops = 1000;
+				ops = BenchmarkConfig::DEFAULT_LIGHT_OPS;
 				break;
 			case BenchmarkConfig::STRESS:
-				ops = 5000;
+				ops = BenchmarkConfig::DEFAULT_STRESS_OPS;
 				break;
 			default:
-				ops = 1000000;
+				ops = BenchmarkConfig::DEFAULT_SINGLE_THREAD_OPS;
 				break;
 		}
 	}
@@ -156,11 +162,18 @@ static void runBenchmarkModule(const BenchmarkConfig &config) {
 
 	switch (config.mode) {
 		case BenchmarkConfig::COMPLETE:
-			MainBenchmark::runCompleteBenchmarkSuite();
+			MainBenchmark::runCompleteBenchmarkSuite(
+				BenchmarkConfig::DEFAULT_SINGLE_THREAD_OPS,
+				BenchmarkConfig::DEFAULT_MULTI_THREAD_BASE_OPS,
+				config.warmup_ops
+			);
 			break;
 
 		case BenchmarkConfig::LIGHT:
-			MainBenchmark::runLightweightBenchmark();
+			MainBenchmark::runLightweightBenchmark(
+				BenchmarkConfig::DEFAULT_LIGHT_OPS,
+				config.warmup_ops
+			);
 			break;
 
 		case BenchmarkConfig::INTEGRATION:
@@ -199,7 +212,7 @@ static void runBenchmarkModule(const BenchmarkConfig &config) {
  */
 static void printEnvironmentInfo() {
 	std::cout << "\n📊 ENVIRONMENT INFORMATION:\n";
-	std::cout << std::string(50, '─') << "\n";
+	std::cout << std::string(50, 0x2D) << "\n";
 
 // Compiler information
 #ifdef __GNUC__
@@ -247,7 +260,7 @@ static void printEnvironmentInfo() {
 	std::cout << "Unknown\n";
 #endif
 
-	std::cout << std::string(50, '─') << "\n";
+	std::cout << std::string(50, 0x2D) << "\n";
 }
 
 /**
@@ -291,7 +304,7 @@ int main(int argc, char* argv[]) {
 
 		// Validate system requirements
 		std::cout << "\n🔍 SYSTEM VALIDATION:\n";
-		std::cout << std::string(50, '─') << "\n";
+		std::cout << std::string(50, 0x2D) << "\n";
 
 		// Check for minimum hardware requirements
 		auto hw_threads = std::thread::hardware_concurrency();
@@ -303,7 +316,7 @@ int main(int argc, char* argv[]) {
 		}
 
 		// Check object size
-		if (sizeof(benchmark::LargeTestObject) < 65535) {
+		if constexpr (sizeof(benchmark::LargeTestObject) < 65535) {
 			std::cerr << "❌ Error: LargeTestObject is too small ("
 					  << sizeof(benchmark::LargeTestObject) << " bytes)\n";
 			return 1;
@@ -319,7 +332,7 @@ int main(int argc, char* argv[]) {
 
 		// Print configuration
 		std::cout << "\n⚙️  BENCHMARK CONFIGURATION:\n";
-		std::cout << std::string(50, '─') << "\n";
+		std::cout << std::string(50, 0x2D) << "\n";
 		std::cout << "Mode: ";
 		switch (config.mode) {
 			case BenchmarkConfig::COMPLETE:
@@ -358,7 +371,7 @@ int main(int argc, char* argv[]) {
 			std::cout << "Max threads: " << config.max_threads << "\n";
 		}
 		std::cout << "Warmup operations: " << config.warmup_ops << "\n";
-		std::cout << std::string(50, '─') << "\n";
+		std::cout << std::string(50, 0x2D) << "\n";
 
 		// Run the benchmarks
 		auto start_time = std::chrono::high_resolution_clock::now();
@@ -374,7 +387,7 @@ int main(int argc, char* argv[]) {
 		// Print completion summary
 		if (!g_shutdown_requested) {
 			std::cout << "\n📊 EXECUTION SUMMARY:\n";
-			std::cout << std::string(50, '─') << "\n";
+			std::cout << std::string(50, 0x2D) << "\n";
 			std::cout << "Total execution time: " << (static_cast<double>(total_duration) / 1000.0) << " seconds\n";
 			std::cout << "Peak memory object: ~" << sizeof(benchmark::LargeTestObject) << " bytes\n";
 			std::cout << "Status: ✅ COMPLETED SUCCESSFULLY\n";
@@ -406,11 +419,11 @@ namespace benchmark_utils {
 	/**
 	 * @brief Run custom benchmark with specific parameters
 	 */
-	static void runCustomBenchmark(size_t pool_size, size_t cache_size, size_t ops, size_t threads = 1) {
+	[[maybe_unused]] static void runCustomBenchmark(size_t pool_size, size_t cache_size, size_t ops, size_t threads = 1) {
 		std::cout << "\n🔧 CUSTOM BENCHMARK:\n";
 		std::cout << "Pool Size: " << pool_size << ", Cache Size: " << cache_size
 				  << ", Ops: " << ops << ", Threads: " << threads << "\n";
-		std::cout << std::string(50, '─') << "\n";
+		std::cout << std::string(50, 0x2D) << "\n";
 
 		// Implementation would depend on the specific pool configuration
 		// This is a template for custom benchmarks
@@ -421,11 +434,11 @@ namespace benchmark_utils {
 	/**
 	 * @brief Quick performance validation
 	 */
-	static bool validatePerformance() {
+	[[maybe_unused]] static bool validatePerformance() {
 		using namespace benchmark;
 
 		std::cout << "\n🚀 QUICK PERFORMANCE VALIDATION:\n";
-		std::cout << std::string(50, '─') << "\n";
+		std::cout << std::string(50, 0x2D) << "\n";
 
 		// Quick 1000-operation test
 		using TestPool = SharedOptimizedObjectPool<LargeTestObject, 128, true>;
