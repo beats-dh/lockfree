@@ -47,9 +47,6 @@ jobs:
       matrix:
         os: [ubuntu-22.04, ubuntu-24.04]
         config: [Debug, Release]
-        compiler: 
-          - { cc: gcc-14, cxx: g++-14 }
-          - { cc: clang-14, cxx: clang++-14 }
         include:
           - os: ubuntu-22.04
             triplet: x64-linux
@@ -58,9 +55,7 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      uses: actions/checkout@main
 
     - name: Install dependencies
       run: |
@@ -70,39 +65,27 @@ jobs:
     - name: Restore artifacts and install vcpkg
       id: vcpkg-step
       run: |
-        vcpkgCommitId=$(grep '.builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d ',' | tr -d '"' | tr -d ' ')
+        vcpkgCommitId=$(grep '.builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d '," ')
         echo "vcpkg commit ID: $vcpkgCommitId"
         echo "VCPKG_GIT_COMMIT_ID=$vcpkgCommitId" >> "$GITHUB_ENV"
+
+    - name: Get vcpkg commit id from vcpkg.json
+      uses: lukka/run-vcpkg@main
+      with:
+        vcpkgGitURL: "https://github.com/microsoft/vcpkg.git"
+        vcpkgGitCommitId: ${{ env.VCPKG_GIT_COMMIT_ID }}
 
     - name: Get latest CMake and ninja
       uses: lukka/get-cmake@main
 
-    - name: Run vcpkg
-      uses: lukka/run-vcpkg@main
+    - name: Run CMake
+      uses: lukka/run-cmake@main
       with:
-        vcpkgGitCommitId: '${{ env.VCPKG_GIT_COMMIT_ID }}'
-    
-    - name: Configure CMake (Linux)
-      uses: lukka/run-cmake@v10
-      env:
-        CC: ${{ matrix.compiler.cc }}
-        CXX: ${{ matrix.compiler.cxx }}
-      with:
-        configurePreset: 'linux-${{ matrix.config }}'
-    
-    - name: Build (Linux)
-      uses: lukka/run-cmake@v10
-      env:
-        CC: ${{ matrix.compiler.cc }}
-        CXX: ${{ matrix.compiler.cxx }}
-      with:
+        configurePreset: ${{ matrix.config  }}
         buildPreset: 'linux-${{ matrix.config }}'
-    
+  
     - name: Test (Linux)
       uses: lukka/run-cmake@v10
-      env:
-        CC: ${{ matrix.compiler.cc }}
-        CXX: ${{ matrix.compiler.cxx }}
       with:
         testPreset: 'linux-${{ matrix.config }}'
     
