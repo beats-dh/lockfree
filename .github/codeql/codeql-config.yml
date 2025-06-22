@@ -1,0 +1,166 @@
+# Configuração do CodeQL para análise de segurança
+# Este arquivo customiza a análise de segurança do código C++
+
+name: "LockFree Object Pool CodeQL Config"
+
+# Configuração de consultas
+queries:
+  - name: security-and-quality
+    uses: security-and-quality
+  - name: security-experimental
+    uses: security-experimental
+
+# Caminhos para incluir na análise
+paths:
+  - include/
+  - examples/
+  - src/
+
+# Caminhos para excluir da análise
+paths-ignore:
+  - build/
+  - vcpkg/
+  - vcpkg_installed/
+  - third_party/
+  - .git/
+  - "**/*.md"
+  - "**/*.txt"
+  - "**/*.yml"
+  - "**/*.yaml"
+  - "**/*.json"
+
+# Configurações específicas para C++
+cpp:
+  # Incluir headers do sistema na análise (pode ser lento)
+  include-system-headers: false
+  
+  # Configurar compilação
+  prepare:
+    # Comandos para preparar o ambiente antes da análise
+    add-build-mode: manual
+  
+  # Configurar extração
+  after-prepare:
+    - echo "Preparando análise CodeQL para LockFree Object Pool"
+  
+  # Configurações de build
+  configure:
+    # Usar as mesmas flags de compilação do projeto
+    command: |
+      cmake -B codeql-build -S . \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_CXX_STANDARD=20 \
+        -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
+  
+  index:
+    # Comando de build para análise
+    command: |
+      cmake --build codeql-build --config Release --parallel
+
+# Configurações de consultas customizadas
+query-filters:
+  # Excluir falsos positivos conhecidos
+  - exclude:
+      id: cpp/unused-local-variable
+      # Variáveis podem ser intencionalmente não usadas em templates
+      
+  - exclude:
+      id: cpp/missing-header-guard
+      # Headers modernos usam #pragma once
+      
+  # Incluir verificações específicas para concorrência
+  - include:
+      tags:
+        - security
+        - correctness
+        - concurrency
+        - performance
+
+# Configurações para reduzir ruído
+suppression:
+  # Suprimir warnings em código de terceiros
+  - rule: "*"
+    paths:
+      - "vcpkg_installed/**"
+      - "build/**"
+  
+  # Suprimir warnings específicos em benchmarks
+  - rule: "cpp/unused-parameter"
+    paths:
+      - "examples/**"
+      - "src/benchmark/**"
+    reason: "Parâmetros de benchmark podem ser intencionalmente não usados"
+
+# Configurações de performance
+performance:
+  # Limitar uso de memória (em MB)
+  max-memory: 4096
+  
+  # Timeout para análise (em minutos)
+  timeout: 30
+  
+  # Número de threads para análise
+  threads: 0  # 0 = usar todos os cores disponíveis
+
+# Configurações de relatório
+reporting:
+  # Formato de saída
+  format: sarif-latest
+  
+  # Incluir fluxo de dados nos resultados
+  include-data-flow: true
+  
+  # Nível mínimo de severidade para reportar
+  min-severity: note
+  
+  # Categorias a incluir no relatório
+  categories:
+    - security
+    - correctness
+    - maintainability
+    - performance
+
+# Configurações experimentais
+experimental:
+  # Habilitar análise de fluxo de dados avançada
+  advanced-dataflow: true
+  
+  # Análise de ponteiros mais precisa
+  precise-pointer-analysis: true
+  
+  # Detecção de race conditions
+  concurrency-analysis: true
+
+# Metadados do projeto
+metadata:
+  project-name: "LockFree Object Pool"
+  project-version: "1.0.0"
+  language: "cpp"
+  framework: "none"
+  
+  # Tags para categorização
+  tags:
+    - lockfree
+    - concurrency
+    - performance
+    - cpp20
+    - header-only
+  
+  # Informações de contato
+  maintainer: "LockFree Object Pool Team"
+  
+  # Links relevantes
+  links:
+    repository: "https://github.com/beats-dh/lockfree"
+    documentation: "https://beats-dh.github.io/lockfree"
+
+# Configurações de debug (para desenvolvimento)
+debug:
+  # Habilitar logs verbosos
+  verbose: false
+  
+  # Salvar arquivos intermediários
+  keep-intermediate: false
+  
+  # Log de timing de análise
+  timing: false

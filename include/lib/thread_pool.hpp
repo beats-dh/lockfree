@@ -1,10 +1,10 @@
 /**
- * Canary - A free and open-source MMORPG server emulator
- * Copyright (©) 2019-2024 OpenTibiaBR <opentibiabr@outlook.com>
- * Repository: https://github.com/opentibiabr/canary
- * License: https://github.com/opentibiabr/canary/blob/main/LICENSE
- * Contributors: https://github.com/opentibiabr/canary/graphs/contributors
- * Website: https://docs.opentibiabr.com/
+ * LockFree Object Pool - A high-performance, thread-safe object pool implementation
+ * Copyright (©) 2025 Daniel <daniel15042015@gmail.com>
+ * Repository: https://github.com/beats-dh/lockfree
+ * License: https://github.com/beats-dh/lockfree/blob/main/LICENSE
+ * Contributors: https://github.com/beats-dh/lockfree/graphs/contributors
+ * Website: 
  */
 
 #pragma once

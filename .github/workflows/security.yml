@@ -1,0 +1,257 @@
+name: Security and Dependency Check
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Executa toda segunda-feira às 03:00 UTC
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+jobs:
+  # Verificação de dependências vulneráveis
+  dependency-check:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        # Adicionar repositório para GCC 14
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+        sudo apt-get update
+        sudo apt-get install -y gcc-14 g++-14 ninja-build cppcheck clang-tools
+    
+    - name: Configure project
+      env:
+        CC: gcc-14
+        CXX: g++-14
+      run: |
+        cmake -B build -S . -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release
+    
+    - name: Generate dependency list
+      run: |
+        echo "# Dependency Report" > DEPENDENCY_REPORT.md
+        echo "" >> DEPENDENCY_REPORT.md
+        echo "## vcpkg Dependencies" >> DEPENDENCY_REPORT.md
+        echo "\`\`\`json" >> DEPENDENCY_REPORT.md
+        cat vcpkg.json >> DEPENDENCY_REPORT.md
+        echo "\`\`\`" >> DEPENDENCY_REPORT.md
+        echo "" >> DEPENDENCY_REPORT.md
+        
+        # Listar dependências instaladas pelo vcpkg
+        if [ -d "vcpkg_installed" ]; then
+          echo "## Installed Packages" >> DEPENDENCY_REPORT.md
+          find vcpkg_installed -name "*.pc" -o -name "CONTROL" -o -name "vcpkg.spdx.json" | head -20 >> DEPENDENCY_REPORT.md
+        fi
+    
+    - name: Upload dependency report
+      uses: actions/upload-artifact@v4
+      with:
+        name: dependency-report
+        path: DEPENDENCY_REPORT.md
+        retention-days: 30
+
+  # Análise estática de código com Clang Static Analyzer
+  static-analysis:
+    name: Static Code Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install analysis tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang clang-tools scan-build cppcheck
+    
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
+    
+    - name: Configure with scan-build
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        scan-build cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Debug
+    
+    - name: Build with static analysis
+      run: |
+        scan-build -o static-analysis-results --status-bugs cmake --build build --parallel
+    
+    - name: Run cppcheck
+      run: |
+        cppcheck --enable=all --xml --xml-version=2 \
+          --suppress=missingIncludeSystem \
+          --suppress=unmatchedSuppression \
+          --suppress=unusedFunction \
+          include/ examples/ src/ 2> cppcheck-results.xml || true
+    
+    - name: Upload static analysis results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: static-analysis-results
+        path: |
+          static-analysis-results/
+          cppcheck-results.xml
+        retention-days: 30
+
+  # Verificação de licenças
+  license-check:
+    name: License Compliance Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check project license
+      run: |
+        echo "# License Compliance Report" > LICENSE_REPORT.md
+        echo "" >> LICENSE_REPORT.md
+        echo "## Project License" >> LICENSE_REPORT.md
+        if [ -f "LICENSE" ]; then
+          echo "✅ LICENSE file found" >> LICENSE_REPORT.md
+          echo "\`\`\`" >> LICENSE_REPORT.md
+          head -10 LICENSE >> LICENSE_REPORT.md
+          echo "\`\`\`" >> LICENSE_REPORT.md
+        else
+          echo "❌ LICENSE file not found" >> LICENSE_REPORT.md
+        fi
+        echo "" >> LICENSE_REPORT.md
+        
+        echo "## Source File License Headers" >> LICENSE_REPORT.md
+        echo "Checking for license headers in source files..." >> LICENSE_REPORT.md
+        
+        # Verificar cabeçalhos de licença em arquivos fonte
+        missing_headers=0
+        for file in $(find include examples src -name "*.hpp" -o -name "*.cpp" -o -name "*.h" 2>/dev/null); do
+          if ! grep -q -i "license\|copyright" "$file" 2>/dev/null; then
+            echo "⚠️  Missing license header: $file" >> LICENSE_REPORT.md
+            missing_headers=$((missing_headers + 1))
+          fi
+        done
+        
+        if [ $missing_headers -eq 0 ]; then
+          echo "✅ All source files have license headers" >> LICENSE_REPORT.md
+        else
+          echo "❌ $missing_headers files missing license headers" >> LICENSE_REPORT.md
+        fi
+    
+    - name: Check dependency licenses
+      run: |
+        echo "" >> LICENSE_REPORT.md
+        echo "## Dependency Licenses" >> LICENSE_REPORT.md
+        echo "Based on vcpkg.json dependencies:" >> LICENSE_REPORT.md
+        echo "" >> LICENSE_REPORT.md
+        echo "| Package | License | Notes |" >> LICENSE_REPORT.md
+        echo "|---------|---------|-------|" >> LICENSE_REPORT.md
+        echo "| atomic-queue | MIT | Header-only library |" >> LICENSE_REPORT.md
+        echo "| parallel-hashmap | Apache-2.0 | Header-only library |" >> LICENSE_REPORT.md
+        echo "| benchmark | Apache-2.0 | Google Benchmark |" >> LICENSE_REPORT.md
+        echo "| gtest | BSD-3-Clause | Google Test |" >> LICENSE_REPORT.md
+        echo "| bshoshany-thread-pool | MIT | Header-only library |" >> LICENSE_REPORT.md
+        echo "| spdlog | MIT | Logging library |" >> LICENSE_REPORT.md
+        echo "" >> LICENSE_REPORT.md
+        echo "⚠️  **Note**: License information should be verified independently" >> LICENSE_REPORT.md
+    
+    - name: Upload license report
+      uses: actions/upload-artifact@v4
+      with:
+        name: license-report
+        path: LICENSE_REPORT.md
+        retention-days: 30
+
+  # Verificação de segurança com Semgrep
+  semgrep-analysis:
+    name: Semgrep Security Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Semgrep
+      uses: semgrep/semgrep-action@v1
+      with:
+        config: >
+          p/security-audit
+          p/cpp
+          p/performance
+        generateSarif: "1"
+      env:
+        SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+    
+    - name: Upload SARIF file
+      if: always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: semgrep.sarif
+
+  # Consolidação de todos os relatórios de segurança
+  security-summary:
+    name: Security Summary
+    needs: [dependency-check, static-analysis, license-check]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all security reports
+      uses: actions/download-artifact@v4
+      with:
+        path: security-reports
+    
+    - name: Create security summary
+      run: |
+        echo "# Security Analysis Summary" > SECURITY_SUMMARY.md
+        echo "" >> SECURITY_SUMMARY.md
+        echo "Generated on: $(date)" >> SECURITY_SUMMARY.md
+        echo "Workflow: ${{ github.workflow }}" >> SECURITY_SUMMARY.md
+        echo "Run ID: ${{ github.run_id }}" >> SECURITY_SUMMARY.md
+        echo "" >> SECURITY_SUMMARY.md
+        
+        # Incluir relatório de dependências
+        if [ -f "security-reports/dependency-report/DEPENDENCY_REPORT.md" ]; then
+          echo "## Dependency Analysis" >> SECURITY_SUMMARY.md
+          cat "security-reports/dependency-report/DEPENDENCY_REPORT.md" >> SECURITY_SUMMARY.md
+          echo "" >> SECURITY_SUMMARY.md
+        fi
+        
+        # Incluir relatório de licenças
+        if [ -f "security-reports/license-report/LICENSE_REPORT.md" ]; then
+          echo "## License Compliance" >> SECURITY_SUMMARY.md
+          cat "security-reports/license-report/LICENSE_REPORT.md" >> SECURITY_SUMMARY.md
+          echo "" >> SECURITY_SUMMARY.md
+        fi
+        
+        # Listar arquivos de análise estática
+        echo "## Static Analysis Results" >> SECURITY_SUMMARY.md
+        if [ -d "security-reports/static-analysis-results" ]; then
+          echo "Static analysis completed. Results available in artifacts." >> SECURITY_SUMMARY.md
+          find security-reports/static-analysis-results -type f | head -10 >> SECURITY_SUMMARY.md
+        else
+          echo "No static analysis results found." >> SECURITY_SUMMARY.md
+        fi
+    
+    - name: Upload security summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-summary
+        path: SECURITY_SUMMARY.md
+        retention-days: 90

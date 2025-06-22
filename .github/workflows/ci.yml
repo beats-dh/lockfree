@@ -1,0 +1,257 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+
+jobs:
+  # Job para verificar formatação de código
+  format-check:
+    name: Code Format Check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install clang-format
+      run: sudo apt-get update && sudo apt-get install -y clang-format
+    
+    - name: Check code formatting
+      run: |
+        find . -name '*.cpp' -o -name '*.hpp' -o -name '*.h' | xargs clang-format --dry-run --Werror
+
+  # Job para build e teste no Windows
+  build-windows:
+    name: Build and Test (Windows)
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        config: [Debug, Release]
+        arch: [x64]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Export GitHub Actions cache environment variables
+      uses: actions/github-script@v7
+      with:
+        script: |
+          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+    
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
+    
+    - name: Configure CMake
+      run: |
+        cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=${{ matrix.config }} -A ${{ matrix.arch }}
+    
+    - name: Build
+      run: cmake --build build --config ${{ matrix.config }} --parallel
+    
+    - name: Test
+      working-directory: build
+      run: ctest --build-config ${{ matrix.config }} --output-on-failure
+    
+    - name: Run benchmark (Release only)
+      if: matrix.config == 'Release'
+      working-directory: build/bin
+      run: ./lockfree_benchmark.exe --help
+    
+    - name: Upload artifacts
+      if: matrix.config == 'Release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: lockfree-benchmark-windows-${{ matrix.arch }}
+        path: build/bin/lockfree_benchmark.exe
+
+  # Job para build e teste no Linux
+  build-linux:
+    name: Build and Test (Linux)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        config: [Debug, Release]
+        compiler: 
+          - { cc: gcc-14, cxx: g++-14 }
+          - { cc: clang-14, cxx: clang++-14 }
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        # Adicionar repositório para GCC 14
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+        sudo apt-get update
+        sudo apt-get install -y ${{ matrix.compiler.cc }} ${{ matrix.compiler.cxx }} ninja-build
+    
+    - name: Export GitHub Actions cache environment variables
+      uses: actions/github-script@v7
+      with:
+        script: |
+          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+    
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
+    
+    - name: Configure CMake
+      env:
+        CC: ${{ matrix.compiler.cc }}
+        CXX: ${{ matrix.compiler.cxx }}
+      run: |
+        cmake -B build -S . -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+    
+    - name: Build
+      run: cmake --build build --parallel
+    
+    - name: Test
+      working-directory: build
+      run: ctest --output-on-failure
+    
+    - name: Run benchmark (Release only)
+      if: matrix.config == 'Release'
+      working-directory: build/bin
+      run: ./lockfree_benchmark --help
+    
+    - name: Upload artifacts
+      if: matrix.config == 'Release' && matrix.compiler.cc == 'gcc-14'
+      uses: actions/upload-artifact@v4
+      with:
+        name: lockfree-benchmark-linux-x64
+        path: build/bin/lockfree_benchmark
+
+  # Job para build e teste no macOS
+  build-macos:
+    name: Build and Test (macOS)
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        config: [Debug, Release]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: brew install ninja
+    
+    - name: Export GitHub Actions cache environment variables
+      uses: actions/github-script@v7
+      with:
+        script: |
+          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+    
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
+    
+    - name: Configure CMake
+      run: |
+        cmake -B build -S . -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=${{ matrix.config }}
+    
+    - name: Build
+      run: cmake --build build --parallel
+    
+    - name: Test
+      working-directory: build
+      run: ctest --output-on-failure
+    
+    - name: Run benchmark (Release only)
+      if: matrix.config == 'Release'
+      working-directory: build/bin
+      run: ./lockfree_benchmark --help
+    
+    - name: Upload artifacts
+      if: matrix.config == 'Release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: lockfree-benchmark-macos-x64
+        path: build/bin/lockfree_benchmark
+
+  # Job para análise de código com CodeQL
+  codeql-analysis:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: cpp
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-11 g++-11 ninja-build
+    
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
+    
+    - name: Configure and Build
+      env:
+        CC: gcc-11
+        CXX: g++-11
+      run: |
+        cmake -B build -S . -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --parallel
+    
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+
+  # Job para criar release quando uma tag é criada
+  release:
+    name: Create Release
+    if: github.event_name == 'release'
+    needs: [build-windows, build-linux, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+    
+    - name: Create release archives
+      run: |
+        cd artifacts
+        # Windows
+        zip -r ../lockfree-benchmark-windows-x64.zip lockfree-benchmark-windows-x64/
+        # Linux
+        tar -czf ../lockfree-benchmark-linux-x64.tar.gz lockfree-benchmark-linux-x64/
+        # macOS
+        tar -czf ../lockfree-benchmark-macos-x64.tar.gz lockfree-benchmark-macos-x64/
+    
+    - name: Upload release assets
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          lockfree-benchmark-windows-x64.zip
+          lockfree-benchmark-linux-x64.tar.gz
+          lockfree-benchmark-macos-x64.tar.gz
+        generate_release_notes: true

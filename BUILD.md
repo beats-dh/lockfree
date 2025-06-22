@@ -28,7 +28,7 @@ Antes de compilar, configure o vcpkg seguindo as instruções em [VCPKG.md](VCPK
 ### 1. Clone o Repositório
 ```bash
 # Clone o repositório
-git clone https://github.com/seu-usuario/lockfree-object-pool.git
+git clone https://github.com/beats-dh/lockfree.git
 cd lockfree-object-pool
 ```
 
@@ -398,16 +398,11 @@ target_link_libraries(my_target PRIVATE lockfree::lockfree_object_pool)
 include(FetchContent)
 FetchContent_Declare(
   lockfree_object_pool
-  GIT_REPOSITORY https://github.com/user/lockfree-object-pool.git
+  GIT_REPOSITORY https://github.com/beats-dh/lockfree.git
   GIT_TAG main
 )
 FetchContent_MakeAvailable(lockfree_object_pool)
 target_link_libraries(my_target PRIVATE lockfree::lockfree_object_pool)
-```
-
-### Git Submodule
-```bash
-git submodule add https://github.com/user/lockfree-object-pool.git third_party/lockfree
 ```
 
 ```cmake

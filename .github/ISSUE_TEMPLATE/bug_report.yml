@@ -1,0 +1,145 @@
+name: 🐛 Bug Report
+description: Relatar um bug no LockFree Object Pool
+title: "[BUG] "
+labels: ["bug", "needs-triage"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reportar um bug! Por favor, preencha as informações abaixo para nos ajudar a reproduzir e corrigir o problema.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Descrição do Bug
+      description: Uma descrição clara e concisa do que o bug é.
+      placeholder: Descreva o comportamento inesperado...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Passos para Reproduzir
+      description: Passos para reproduzir o comportamento
+      placeholder: |
+        1. Configure o projeto com '...'
+        2. Execute o comando '...'
+        3. Observe o erro '...'
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamento Esperado
+      description: Uma descrição clara e concisa do que você esperava que acontecesse.
+      placeholder: Eu esperava que...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Comportamento Atual
+      description: Uma descrição clara e concisa do que realmente aconteceu.
+      placeholder: Em vez disso, o que aconteceu foi...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Sistema Operacional
+      description: Em qual sistema operacional você está executando?
+      options:
+        - Windows 10
+        - Windows 11
+        - Ubuntu 20.04
+        - Ubuntu 22.04
+        - macOS Big Sur
+        - macOS Monterey
+        - macOS Ventura
+        - Outro (especificar nos detalhes adicionais)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: compiler
+    attributes:
+      label: Compilador
+      description: Qual compilador você está usando?
+      options:
+        - MSVC 2022
+        - MSVC 2019
+        - GCC 11
+        - GCC 12
+        - Clang 14
+        - Clang 15
+        - Outro (especificar nos detalhes adicionais)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: build_type
+    attributes:
+      label: Tipo de Build
+      description: Qual tipo de build você estava usando?
+      options:
+        - Release
+        - Debug
+        - RelWithDebInfo
+        - MinSizeRel
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Informações do Ambiente
+      description: |
+        Informações adicionais sobre seu ambiente de desenvolvimento
+      placeholder: |
+        - Versão do CMake: 
+        - Versão do vcpkg: 
+        - Versões das dependências: 
+        - Arquitetura (x64/x86): 
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs/Output
+      description: |
+        Se aplicável, adicione logs, mensagens de erro ou output do console.
+        **Dica:** Você pode anexar imagens ou arquivos de log arrastando e soltando aqui.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Informações Adicionais
+      description: |
+        Adicione qualquer outro contexto sobre o problema aqui.
+        - Você consegue reproduzir consistentemente?
+        - O problema acontece apenas em certas condições?
+        - Você tentou alguma solução alternativa?
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      description: Por favor, confirme que você:
+      options:
+        - label: Pesquisei por issues similares antes de criar esta
+          required: true
+        - label: Estou usando a versão mais recente do projeto
+          required: true
+        - label: Incluí todas as informações necessárias para reproduzir o problema
+          required: true

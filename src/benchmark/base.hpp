@@ -1,3 +1,12 @@
+/**
+ * LockFree Object Pool - A high-performance, thread-safe object pool implementation
+ * Copyright (©) 2025 Daniel <daniel15042015@gmail.com>
+ * Repository: https://github.com/beats-dh/lockfree
+ * License: https://github.com/beats-dh/lockfree/blob/main/LICENSE
+ * Contributors: https://github.com/beats-dh/lockfree/graphs/contributors
+ * Website: 
+ */
+
 #pragma once
 
 #include "../include/lockfree/lockfree.hpp"
