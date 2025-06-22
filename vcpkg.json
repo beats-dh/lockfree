@@ -1,0 +1,16 @@
+{
+  "name": "lockfree-object-pool",
+  "version": "1.0.0",
+  "description": "High-performance lock-free object pool implementation in C++20",
+  "homepage": "https://github.com/your-username/lockfree-object-pool",
+  "license": "MIT",
+  "builtin-baseline": "0cf34c184ce990471435b5b9c92edcf7424930b1",
+  "dependencies": [
+    "atomic-queue",
+    "parallel-hashmap",
+    "benchmark",
+    "gtest",
+    "bshoshany-thread-pool",
+    "spdlog"
+  ]
+}
