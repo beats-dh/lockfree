@@ -14,6 +14,7 @@
 #include "parallel_hashmap/phmap.h"
 #include <span>
 #include <chrono>
+#include <memory_resource>
 
 #ifdef _MSC_VER
 	#pragma warning(push)
@@ -141,7 +142,7 @@ public:
 	 * @brief Default constructor using the default memory resource
 	 */
 	OptimizedObjectPool() :
-		OptimizedObjectPool(Allocator { std::pmr::get_default_resource() }) { }
+		OptimizedObjectPool(Allocator(std::pmr::get_default_resource())) { }
 
 	/**
 	 * @brief Construct pool with custom allocator
