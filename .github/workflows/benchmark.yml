@@ -1,28 +1,47 @@
-name: Performance Benchmarks
+name: Benchmark
 
 on:
-  # Executa semanalmente às segundas-feiras às 02:00 UTC
-  schedule:
-    - cron: '0 2 * * 1'
-  # Permite execução manual
   workflow_dispatch:
-    inputs:
-      benchmark_filter:
-        description: 'Filtro para benchmarks específicos (opcional)'
-        required: false
-        default: ''
-      iterations:
-        description: 'Número de iterações para cada benchmark'
-        required: false
-        default: '10'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "src/**"
+      - "include/**"
+      - "examples/**"
+      - "CMakeLists.txt"
+      - "vcpkg.json"
+      - ".github/workflows/benchmark.yml"
+  push:
+    paths:
+      - "src/**"
+      - "include/**"
+      - "examples/**"
+      - "CMakeLists.txt"
+      - "vcpkg.json"
+      - ".github/workflows/benchmark.yml"
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sunday at 2 AM UTC
 
 env:
   VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  MAKEFLAGS: "-j 4"
 
 jobs:
-  benchmark:
-    name: Run Performance Benchmarks
-    runs-on: ${{ matrix.os }}
+  cancel-runs:
+    if: github.event_name == 'pull_request' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+        with:
+          access_token: ${{ github.token }}
+
+  benchmark-ubuntu:
+    if: ${{ github.event_name == 'push' || github.event_name == 'schedule' || !github.event.pull_request.draft }}
+    name: ubuntu-latest-benchmark
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
@@ -65,7 +84,7 @@ jobs:
         vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
         vcpkgJsonGlob: 'vcpkg.json'
     
-    - name: Run CMake with vcpkg (Ubuntu)
+    - name: Configure CMake (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
       uses: lukka/run-cmake@v10
       env:
@@ -73,20 +92,38 @@ jobs:
         CXX: ${{ matrix.compiler_cxx }}
       with:
         configurePreset: 'linux-release'
+    
+    - name: Build (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      uses: lukka/run-cmake@v10
+      env:
+        CC: ${{ matrix.compiler_cc }}
+        CXX: ${{ matrix.compiler_cxx }}
+      with:
         buildPreset: 'linux-release'
     
-    - name: Run CMake with vcpkg (Windows)
+    - name: Configure CMake (Windows)
       if: matrix.os == 'windows-latest'
       uses: lukka/run-cmake@v10
       with:
         configurePreset: 'windows-release'
+    
+    - name: Build (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: lukka/run-cmake@v10
+      with:
         buildPreset: 'windows-release'
     
-    - name: Run CMake with vcpkg (macOS)
+    - name: Configure CMake (macOS)
       if: matrix.os == 'macos-latest'
       uses: lukka/run-cmake@v10
       with:
         configurePreset: 'macos-release'
+    
+    - name: Build (macOS)
+      if: matrix.os == 'macos-latest'
+      uses: lukka/run-cmake@v10
+      with:
         buildPreset: 'macos-release'
     
     - name: Run Benchmarks - Pool Operations

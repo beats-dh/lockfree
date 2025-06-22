@@ -1,0 +1,105 @@
+name: Build - macOS
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "src/**"
+      - "include/**"
+      - "examples/**"
+      - "CMakeLists.txt"
+      - "vcpkg.json"
+      - ".github/workflows/ci-macos.yml"
+  push:
+    paths:
+      - "src/**"
+      - "include/**"
+      - "examples/**"
+      - "CMakeLists.txt"
+      - "vcpkg.json"
+      - ".github/workflows/ci-macos.yml"
+    branches: [ main, develop ]
+  release:
+    types: [ published ]
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  MAKEFLAGS: "-j 4"
+
+jobs:
+  cancel-runs:
+    if: github.event_name == 'pull_request' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+        with:
+          access_token: ${{ github.token }}
+
+  build-macos:
+    if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+    name: macos-latest-${{ matrix.config }}
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [Debug, Release]
+        include:
+          - triplet: x64-osx
+        arch: [x64, arm64]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Restore artifacts and install vcpkg
+      id: vcpkg-step
+      run: |
+        vcpkgCommitId=$(grep '.builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d ',' | tr -d '"' | tr -d ' ')
+        echo "vcpkg commit ID: $vcpkgCommitId"
+        echo "VCPKG_GIT_COMMIT_ID=$vcpkgCommitId" >> "$GITHUB_ENV"
+
+    - name: Get latest CMake and ninja
+      uses: lukka/get-cmake@main
+
+    - name: Run vcpkg
+      uses: lukka/run-vcpkg@main
+      with:
+        vcpkgGitCommitId: '${{ env.VCPKG_GIT_COMMIT_ID }}'
+    
+    - name: Configure CMake (macOS)
+      uses: lukka/run-cmake@v10
+      with:
+        configurePreset: 'macos-${{ matrix.config }}'
+        configurePresetAdditionalArgs: "['-DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}']"    
+    
+    - name: Build (macOS)
+      uses: lukka/run-cmake@v10
+      with:
+        buildPreset: 'macos-${{ matrix.config }}'
+    
+    - name: Test (macOS)
+      uses: lukka/run-cmake@v10
+      with:
+        testPreset: 'macos-${{ matrix.config }}'
+    
+    - name: Run benchmark (Release only)
+      if: matrix.config == 'Release'
+      working-directory: build/bin
+      run: |
+        echo "Running benchmarks..."
+        ./lockfree_benchmark --benchmark_repetitions=3 --benchmark_report_aggregates_only=true
+    
+    - name: Upload build artifacts
+      if: matrix.config == 'Release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: lockfree-macos-${{ matrix.arch }}
+        path: |
+          build/bin/lockfree_benchmark
+          build/bin/lockfree_test
+        retention-days: 7

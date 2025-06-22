@@ -1,16 +1,43 @@
-name: Security and Dependency Check
+name: Security Analysis
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
-  schedule:
-    # Executa toda segunda-feira às 03:00 UTC
-    - cron: '0 3 * * 1'
   workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "src/**"
+      - "include/**"
+      - "examples/**"
+      - "CMakeLists.txt"
+      - "vcpkg.json"
+      - ".github/workflows/security.yml"
+  push:
+    paths:
+      - "src/**"
+      - "include/**"
+      - "examples/**"
+      - "CMakeLists.txt"
+      - "vcpkg.json"
+      - ".github/workflows/security.yml"
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly on Monday at 6 AM UTC
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  MAKEFLAGS: "-j 4"
 
 jobs:
+  cancel-runs:
+    if: github.event_name == 'pull_request' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+        with:
+          access_token: ${{ github.token }}
+
   # Verificação de dependências vulneráveis
   dependency-check:
     name: Dependency Vulnerability Scan
@@ -39,13 +66,20 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y gcc-14 g++-14
     
-    - name: Run CMake with vcpkg
+    - name: Configure CMake
       uses: lukka/run-cmake@v10
       env:
         CC: gcc-14
         CXX: g++-14
       with:
         configurePreset: 'linux-release'
+    
+    - name: Build
+      uses: lukka/run-cmake@v10
+      env:
+        CC: gcc-14
+        CXX: g++-14
+      with:
         buildPreset: 'linux-release'
     
     - name: Generate dependency list
@@ -73,7 +107,8 @@ jobs:
 
   # Análise estática de código com Clang Static Analyzer
   static-analysis:
-    name: Static Code Analysis
+    if: ${{ github.event_name == 'push' || github.event_name == 'schedule' || !github.event.pull_request.draft }}
+    name: ubuntu-latest-static-analysis
     runs-on: ubuntu-latest
     
     steps:
