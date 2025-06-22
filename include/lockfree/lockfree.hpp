@@ -921,7 +921,7 @@ public:
 	 * @brief Default constructor using default memory resource
 	 */
 	SharedOptimizedObjectPool() :
-		SharedOptimizedObjectPool(Allocator { std::pmr::get_default_resource() }) { }
+		SharedOptimizedObjectPool(Allocator(std::pmr::get_default_resource())) { }
 
 	/**
 	 * @brief Construct with custom allocator
