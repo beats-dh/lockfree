@@ -49,14 +49,21 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Install latest CMake and Ninja
-      uses: lukka/get-cmake@latest
-    
-    - name: Setup vcpkg
-      uses: lukka/run-vcpkg@v11
+    - name: Restore artifacts and install vcpkg
+      id: vcpkg-step
+      run: |
+        vcpkgCommitId=$(grep '.builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d ',' | tr -d '"' | tr -d ' ')
+        echo "vcpkg commit ID: $vcpkgCommitId"
+        echo "VCPKG_GIT_COMMIT_ID=$vcpkgCommitId" >> "$GITHUB_ENV"
+
+    - name: Run VCPKG
+      uses: lukka/run-vcpkg@main
       with:
-        vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
-        vcpkgJsonGlob: 'vcpkg.json'
+        vcpkgGitURL: "https://github.com/microsoft/vcpkg.git"
+        vcpkgGitCommitId: ${{ env.VCPKG_GIT_COMMIT_ID }}
+
+    - name: Get latest CMake and ninja
+      uses: lukka/get-cmake@main
     
     - name: Install dependencies
       run: |
@@ -66,20 +73,13 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y gcc-14 g++-14
     
-    - name: Configure CMake
-      uses: lukka/run-cmake@v10
+    - name: Run CMake
+      uses: lukka/run-cmake@main
       env:
         CC: gcc-14
         CXX: g++-14
       with:
         configurePreset: 'linux-release'
-    
-    - name: Build
-      uses: lukka/run-cmake@v10
-      env:
-        CC: gcc-14
-        CXX: g++-14
-      with:
         buildPreset: 'linux-release'
     
     - name: Generate dependency list
@@ -223,6 +223,9 @@ jobs:
   semgrep-analysis:
     name: Semgrep Security Analysis
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     
     steps:
     - uses: actions/checkout@v4
