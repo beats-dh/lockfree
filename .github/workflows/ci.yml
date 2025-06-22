@@ -49,6 +49,8 @@ jobs:
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
+        runVcpkgInstall: true
+        vcpkgJsonGlob: 'vcpkg.json'
     
     - name: Configure CMake
       run: |
@@ -106,6 +108,8 @@ jobs:
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
+        runVcpkgInstall: true
+        vcpkgJsonGlob: 'vcpkg.json'
     
     - name: Configure CMake
       env:
@@ -158,6 +162,8 @@ jobs:
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
+        runVcpkgInstall: true
+        vcpkgJsonGlob: 'vcpkg.json'
     
     - name: Configure CMake
       run: |
