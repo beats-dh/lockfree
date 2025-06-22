@@ -48,7 +48,7 @@ jobs:
         config: [macos-debug, macos-release]
         include:
           - triplet: x64-osx
-        arch: [x64, arm64]
+        arch: [x86_64, arm64]
     
     steps:
     - name: Checkout repository
@@ -93,7 +93,7 @@ jobs:
       if: matrix.config == 'macos-release'
       uses: actions/upload-artifact@v4
       with:
-        name: lockfree-macos-${{ matrix.arch }}
+        name: lockfree-${{ matrix.config }}-${{ matrix.arch }}
         path: |
           build/macos-release/bin/lockfree_benchmark
           build/macos-release/bin/lockfree_test

@@ -55,7 +55,11 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
         # Maximum optimization for GCC/Clang Release
         add_compile_options(-O3 -DNDEBUG -flto -ffast-math)
         add_compile_options(-funroll-loops -finline-functions)
-        add_link_options(-flto -fuse-ld=gold)
+        add_link_options(-flto)
+        # Use gold linker only on Linux (not available on macOS)
+        if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+            add_link_options(-fuse-ld=gold)
+        endif()
         # Additional GCC/Clang release optimizations
         add_compile_options(-fomit-frame-pointer -fno-stack-protector)
     endif()
