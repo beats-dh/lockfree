@@ -69,7 +69,7 @@ jobs:
         echo "vcpkg commit ID: $vcpkgCommitId"
         echo "VCPKG_GIT_COMMIT_ID=$vcpkgCommitId" >> "$GITHUB_ENV"
 
-    - name: Get vcpkg commit id from vcpkg.json
+    - name: Run VCPKG
       uses: lukka/run-vcpkg@main
       with:
         vcpkgGitURL: "https://github.com/microsoft/vcpkg.git"

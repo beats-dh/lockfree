@@ -45,50 +45,45 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        config: [Debug, Release]
+        config: [macos-debug, macos-release]
         include:
           - triplet: x64-osx
         arch: [x64, arm64]
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        submodules: recursive
+      uses: actions/checkout@main
 
     - name: Restore artifacts and install vcpkg
       id: vcpkg-step
       run: |
-        vcpkgCommitId=$(grep '.builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d ',' | tr -d '"' | tr -d ' ')
+        vcpkgCommitId=$(grep '.builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d '," ')
         echo "vcpkg commit ID: $vcpkgCommitId"
         echo "VCPKG_GIT_COMMIT_ID=$vcpkgCommitId" >> "$GITHUB_ENV"
 
-    - name: Get latest CMake and ninja
-      uses: lukka/get-cmake@main
-
-    - name: Run vcpkg
+    - name: Run VCPKG
       uses: lukka/run-vcpkg@main
       with:
-        vcpkgGitCommitId: '${{ env.VCPKG_GIT_COMMIT_ID }}'
+        vcpkgGitURL: "https://github.com/microsoft/vcpkg.git"
+        vcpkgGitCommitId: ${{ env.VCPKG_GIT_COMMIT_ID }}
+
+    - name: Get latest CMake and ninja
+      uses: lukka/get-cmake@main
     
-    - name: Configure CMake (macOS)
-      uses: lukka/run-cmake@v10
+    - name: Run CMake
+      uses: lukka/run-cmake@main
       with:
-        configurePreset: 'macos-${{ matrix.config }}'
-        configurePresetAdditionalArgs: "['-DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}']"    
-    
-    - name: Build (macOS)
-      uses: lukka/run-cmake@v10
-      with:
-        buildPreset: 'macos-${{ matrix.config }}'
+        configurePreset: '${{ matrix.config }}'
+        configurePresetAdditionalArgs: "['-DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}']"
+        buildPreset: '${{ matrix.config }}'
     
     - name: Test (macOS)
       uses: lukka/run-cmake@v10
       with:
-        testPreset: 'macos-${{ matrix.config }}'
+        testPreset: '${{ matrix.config }}'
     
     - name: Run benchmark (Release only)
-      if: matrix.config == 'Release'
+      if: matrix.config == 'macos-release'
       working-directory: build/bin
       run: |
         echo "Running benchmarks..."
