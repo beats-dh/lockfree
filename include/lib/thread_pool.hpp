@@ -63,4 +63,3 @@ private:
 	std::unique_ptr<BS::thread_pool<BS::tp::none>> pool;
 };
 
-constexpr auto g_threadPool = ThreadPool::getInstance;
