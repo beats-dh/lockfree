@@ -177,6 +177,9 @@ static void runBenchmarkModule(const BenchmarkConfig &config) {
 				config.warmup_ops
 			);
 			break;
+		case BenchmarkConfig::THREADID:
+			// ThreadId optimization tests are handled in the earlier switch
+			break;
 
 		case BenchmarkConfig::LIGHT:
 			MainBenchmark::runLightweightBenchmark(

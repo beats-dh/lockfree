@@ -7,15 +7,10 @@
  * Website: 
  */
 
-#include "lib/thread/thread_pool.hpp"
-
-#include "game/game.hpp"
-#include "utils/tools.hpp"
-#include "lib/di/container.hpp"
+#include "thread_pool.hpp"
 #include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
 #include <csignal>
+#include <algorithm>
 
 /**
  * Regardless of how many cores your computer have, we want at least
@@ -29,12 +24,13 @@
 #endif
 
 ThreadPool &ThreadPool::getInstance() {
-	return inject<ThreadPool>();
+	static ThreadPool instance;
+	return instance;
 }
 
 ThreadPool::ThreadPool(uint32_t threadCount) :
 	pool { std::make_unique<BS::thread_pool<BS::tp::none>>(
-		threadCount > 0 ? threadCount : std::max<int>(getNumberOfCores(), DEFAULT_NUMBER_OF_THREADS)
+		threadCount > 0 ? threadCount : std::max<uint32_t>(std::thread::hardware_concurrency(), DEFAULT_NUMBER_OF_THREADS)
 	) } {
 	start();
 }

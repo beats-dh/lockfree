@@ -28,7 +28,7 @@ namespace benchmark {
 		static constexpr size_t BUFFER_SIZE = 65535 - sizeof(size_t) - sizeof(uint32_t) - sizeof(int16_t);
 
 		LargeTestObject() noexcept :
-			m_size(0), m_checksum(0), threadId(-1) { }
+			threadId(-1), m_size(0), m_checksum(0) { }
 
 		~LargeTestObject() = default;
 
