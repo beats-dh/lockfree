@@ -22,11 +22,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Install latest CMake and Ninja
+      uses: lukka/get-cmake@latest
+    
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
-        runVcpkgInstall: true
         vcpkgJsonGlob: 'vcpkg.json'
     
     - name: Install dependencies
@@ -35,14 +37,16 @@ jobs:
         # Adicionar repositório para GCC 14
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
         sudo apt-get update
-        sudo apt-get install -y gcc-14 g++-14 ninja-build cppcheck clang-tools
+        sudo apt-get install -y gcc-14 g++-14
     
-    - name: Configure project
+    - name: Run CMake with vcpkg
+      uses: lukka/run-cmake@v10
       env:
         CC: gcc-14
         CXX: g++-14
-      run: |
-        cmake -B build -S . -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release
+      with:
+        configurePreset: 'linux-release'
+        buildPreset: 'linux-release'
     
     - name: Generate dependency list
       run: |
@@ -80,22 +84,21 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y clang clang-tools scan-build cppcheck
     
+    - name: Install latest CMake and Ninja
+      uses: lukka/get-cmake@latest
+    
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
-        runVcpkgInstall: true
         vcpkgJsonGlob: 'vcpkg.json'
     
-    - name: Configure with scan-build
+    - name: Configure and build with scan-build
       env:
         CC: clang
         CXX: clang++
       run: |
-        scan-build cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Debug
-    
-    - name: Build with static analysis
-      run: |
+        scan-build -o static-analysis-results --status-bugs cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Debug -G Ninja
         scan-build -o static-analysis-results --status-bugs cmake --build build --parallel
     
     - name: Run cppcheck

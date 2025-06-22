@@ -38,30 +38,21 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Export GitHub Actions cache environment variables
-      uses: actions/github-script@v7
-      with:
-        script: |
-          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+    - name: Install latest CMake and Ninja
+      uses: lukka/get-cmake@latest
     
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
-        runVcpkgInstall: true
         vcpkgJsonGlob: 'vcpkg.json'
     
-    - name: Configure CMake
-      run: |
-        cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=${{ matrix.config }} -A ${{ matrix.arch }}
-    
-    - name: Build
-      run: cmake --build build --config ${{ matrix.config }} --parallel
-    
-    - name: Test
-      working-directory: build
-      run: ctest --build-config ${{ matrix.config }} --output-on-failure
+    - name: Run CMake with vcpkg
+      uses: lukka/run-cmake@v10
+      with:
+        configurePreset: 'windows-${{ matrix.config }}'
+        buildPreset: 'windows-${{ matrix.config }}'
+        testPreset: 'windows-${{ matrix.config }}'
     
     - name: Run benchmark (Release only)
       if: matrix.config == 'Release'
@@ -95,35 +86,26 @@ jobs:
         # Adicionar repositório para GCC 14
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
         sudo apt-get update
-        sudo apt-get install -y ${{ matrix.compiler.cc }} ${{ matrix.compiler.cxx }} ninja-build
+        sudo apt-get install -y ${{ matrix.compiler.cc }} ${{ matrix.compiler.cxx }}
     
-    - name: Export GitHub Actions cache environment variables
-      uses: actions/github-script@v7
-      with:
-        script: |
-          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+    - name: Install latest CMake and Ninja
+      uses: lukka/get-cmake@latest
     
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
-        runVcpkgInstall: true
         vcpkgJsonGlob: 'vcpkg.json'
     
-    - name: Configure CMake
+    - name: Run CMake with vcpkg
+      uses: lukka/run-cmake@v10
       env:
         CC: ${{ matrix.compiler.cc }}
         CXX: ${{ matrix.compiler.cxx }}
-      run: |
-        cmake -B build -S . -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=${{ matrix.config }}
-    
-    - name: Build
-      run: cmake --build build --parallel
-    
-    - name: Test
-      working-directory: build
-      run: ctest --output-on-failure
+      with:
+        configurePreset: 'linux-${{ matrix.config }}'
+        buildPreset: 'linux-${{ matrix.config }}'
+        testPreset: 'linux-${{ matrix.config }}'
     
     - name: Run benchmark (Release only)
       if: matrix.config == 'Release'
@@ -144,37 +126,27 @@ jobs:
     strategy:
       matrix:
         config: [Debug, Release]
+        arch: [x64, arm64]
     
     steps:
     - uses: actions/checkout@v4
     
-    - name: Install dependencies
-      run: brew install ninja
-    
-    - name: Export GitHub Actions cache environment variables
-      uses: actions/github-script@v7
-      with:
-        script: |
-          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+    - name: Install latest CMake and Ninja
+      uses: lukka/get-cmake@latest
     
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
-        runVcpkgInstall: true
         vcpkgJsonGlob: 'vcpkg.json'
     
-    - name: Configure CMake
-      run: |
-        cmake -B build -S . -G Ninja -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=${{ matrix.config }}
-    
-    - name: Build
-      run: cmake --build build --parallel
-    
-    - name: Test
-      working-directory: build
-      run: ctest --output-on-failure
+    - name: Run CMake with vcpkg
+      uses: lukka/run-cmake@v10
+      with:
+        configurePreset: 'macos-${{ matrix.config }}'
+        buildPreset: 'macos-${{ matrix.config }}'
+        testPreset: 'macos-${{ matrix.config }}'
+        configurePresetAdditionalArgs: "['-DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}']"
     
     - name: Run benchmark (Release only)
       if: matrix.config == 'Release'

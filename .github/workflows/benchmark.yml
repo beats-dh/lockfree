@@ -56,39 +56,38 @@ jobs:
       if: matrix.os == 'macos-latest'
       run: brew install ninja
     
-    - name: Export GitHub Actions cache environment variables
-      uses: actions/github-script@v7
-      with:
-        script: |
-          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+    - name: Install latest CMake and Ninja
+      uses: lukka/get-cmake@latest
     
     - name: Setup vcpkg
       uses: lukka/run-vcpkg@v11
       with:
         vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
-        runVcpkgInstall: true
         vcpkgJsonGlob: 'vcpkg.json'
     
-    - name: Configure CMake (Ubuntu/macOS)
-      if: matrix.os != 'windows-latest'
+    - name: Run CMake with vcpkg (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      uses: lukka/run-cmake@v10
       env:
         CC: ${{ matrix.compiler_cc }}
         CXX: ${{ matrix.compiler_cxx }}
-      run: |
-        cmake -B build -S . -G "${{ matrix.generator }}" \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_C_COMPILER=${{ matrix.compiler_cc }} \
-          -DCMAKE_CXX_COMPILER=${{ matrix.compiler_cxx }} \
-          -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
+      with:
+        configurePreset: 'linux-release'
+        buildPreset: 'linux-release'
     
-    - name: Configure CMake (Windows)
+    - name: Run CMake with vcpkg (Windows)
       if: matrix.os == 'windows-latest'
-      run: |
-        cmake -B build -S . -G "${{ matrix.generator }}" -A ${{ matrix.arch }} -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Release
+      uses: lukka/run-cmake@v10
+      with:
+        configurePreset: 'windows-release'
+        buildPreset: 'windows-release'
     
-    - name: Build
-      run: cmake --build build --config Release --parallel
+    - name: Run CMake with vcpkg (macOS)
+      if: matrix.os == 'macos-latest'
+      uses: lukka/run-cmake@v10
+      with:
+        configurePreset: 'macos-release'
+        buildPreset: 'macos-release'
     
     - name: Run Benchmarks - Pool Operations
       working-directory: build/bin
