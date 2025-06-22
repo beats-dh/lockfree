@@ -91,7 +91,7 @@ jobs:
     
     - name: Run benchmark (Release only)
       if: matrix.config == 'linux-release'
-      working-directory: build/bin
+      working-directory: build/linux-release/bin
       run: |
         echo "Running benchmarks..."
         ./lockfree_benchmark --benchmark_repetitions=3 --benchmark_report_aggregates_only=true
@@ -102,6 +102,6 @@ jobs:
       with:
         name: lockfree-linux
         path: |
-          build/bin/lockfree_benchmark
-          build/bin/lockfree_test
+          build/linux-release/bin/lockfree_benchmark
+          build/linux-release/bin/lockfree_test
         retention-days: 7
