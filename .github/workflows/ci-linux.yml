@@ -90,14 +90,14 @@ jobs:
         testPreset: '${{ matrix.config }}'
     
     - name: Run benchmark (Release only)
-      if: matrix.config == 'Release'
+      if: matrix.config == 'linux-release'
       working-directory: build/bin
       run: |
         echo "Running benchmarks..."
         ./lockfree_benchmark --benchmark_repetitions=3 --benchmark_report_aggregates_only=true
     
     - name: Upload build artifacts
-      if: matrix.config == 'Release'
+      if: matrix.config == 'linux-release'
       uses: actions/upload-artifact@v4
       with:
         name: lockfree-linux
