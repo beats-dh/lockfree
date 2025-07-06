@@ -4,7 +4,7 @@
   "description": "High-performance lock-free object pool implementation in C++20",
   "homepage": "https://github.com/your-username/lockfree-object-pool",
   "license": "MIT",
-  "builtin-baseline": "5a2fc66b7da6d08913fdd8274c86450eb7b9e343",
+  "builtin-baseline": "e08b7bd89ae162f8579df2f8d39a1ae94107c8fd",
   "dependencies": [
     "atomic-queue",
     "parallel-hashmap",

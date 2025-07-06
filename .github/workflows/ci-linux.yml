@@ -57,10 +57,23 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@main
 
-    - name: Install dependencies
+    - name: Switch to gcc-13 on Ubuntu 22.04
+      if: matrix.os == 'ubuntu-22.04'
       run: |
+          sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+          sudo apt-get update
+          sudo apt install gcc-13 g++-13 -y
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 --slave /usr/bin/g++ g++ /usr/bin/g++-13 --slave /usr/bin/gcov gcov /usr/bin/gcov-12
+          sudo update-alternatives --set gcc /usr/bin/gcc-13
+
+    - name: Switch to gcc-14 on Ubuntu 24.04
+      if: matrix.os == 'ubuntu-24.04'
+      run: |
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
         sudo apt-get update
-        sudo apt-get install -y ${{ matrix.triplet == 'x64-linux-gcc' && 'gcc-14 g++-14' || 'clang-14' }}
+        sudo apt-get install gcc-14 g++-14 -y
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 --slave /usr/bin/g++ g++ /usr/bin/g++-14 --slave /usr/bin/gcov gcov /usr/bin/gcov-14
+        sudo update-alternatives --set gcc /usr/bin/gcc-14
 
     - name: Restore artifacts and install vcpkg
       id: vcpkg-step
@@ -100,7 +113,7 @@ jobs:
       if: matrix.config == 'linux-release'
       uses: actions/upload-artifact@v4
       with:
-        name: lockfree-linux
+        name: lockfree-${{ matrix.os }}
         path: |
           build/linux-release/bin/lockfree_benchmark
           build/linux-release/bin/lockfree_test
