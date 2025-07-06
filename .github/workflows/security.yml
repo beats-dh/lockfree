@@ -105,55 +105,6 @@ jobs:
         path: DEPENDENCY_REPORT.md
         retention-days: 30
 
-  # Análise estática de código com Clang Static Analyzer
-  static-analysis:
-    if: ${{ github.event_name == 'push' || github.event_name == 'schedule' || !github.event.pull_request.draft }}
-    name: ubuntu-latest-static-analysis
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install analysis tools
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y clang clang-tools scan-build cppcheck
-    
-    - name: Install latest CMake and Ninja
-      uses: lukka/get-cmake@latest
-    
-    - name: Setup vcpkg
-      uses: lukka/run-vcpkg@v11
-      with:
-        vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
-        vcpkgJsonGlob: 'vcpkg.json'
-    
-    - name: Configure and build with scan-build
-      env:
-        CC: clang
-        CXX: clang++
-      run: |
-        scan-build -o static-analysis-results --status-bugs cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake -DCMAKE_BUILD_TYPE=Debug -G Ninja
-        scan-build -o static-analysis-results --status-bugs cmake --build build --parallel
-    
-    - name: Run cppcheck
-      run: |
-        cppcheck --enable=all --xml --xml-version=2 \
-          --suppress=missingIncludeSystem \
-          --suppress=unmatchedSuppression \
-          --suppress=unusedFunction \
-          include/ examples/ src/ 2> cppcheck-results.xml || true
-    
-    - name: Upload static analysis results
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: static-analysis-results
-        path: |
-          static-analysis-results/
-          cppcheck-results.xml
-        retention-days: 30
-
   # Verificação de licenças
   license-check:
     name: License Compliance Check

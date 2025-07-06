@@ -40,19 +40,23 @@ jobs:
 
   build-macos:
     if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
-    name: macos-latest-${{ matrix.config }}
-    runs-on: macos-latest
+    name: ${{ matrix.arch }}-${{ matrix.config }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         config: [macos-debug, macos-release]
         include:
-          - triplet: x64-osx
-        arch: [x86_64, arm64]
+          - os: macos-latest
+            arch: x86_64
+            triplet: x64-osx
+          - os: macos-14
+            arch: arm64
+            triplet: arm64-osx
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@main
+      uses: actions/checkout@v4
 
     - name: Restore artifacts and install vcpkg
       id: vcpkg-step
@@ -84,7 +88,7 @@ jobs:
     
     - name: Run benchmark (Release only)
       if: matrix.config == 'macos-release'
-      working-directory: build/macos-release/bin
+      working-directory: build/${{ matrix.config }}/bin
       run: |
         echo "Running benchmarks..."
         ./lockfree_benchmark --light
