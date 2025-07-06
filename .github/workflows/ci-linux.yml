@@ -1,0 +1,107 @@
+name: Build - Linux
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "src/**"
+      - "include/**"
+      - "examples/**"
+      - "CMakeLists.txt"
+      - "vcpkg.json"
+      - ".github/workflows/ci-linux.yml"
+  push:
+    paths:
+      - "src/**"
+      - "include/**"
+      - "examples/**"
+      - "CMakeLists.txt"
+      - "vcpkg.json"
+      - ".github/workflows/ci-linux.yml"
+    branches: [ main, develop ]
+  release:
+    types: [ published ]
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  MAKEFLAGS: "-j 4"
+
+jobs:
+  cancel-runs:
+    if: github.event_name == 'pull_request' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+        with:
+          access_token: ${{ github.token }}
+
+  build-linux:
+    if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+    name: ${{ matrix.os }}-${{ matrix.config }}-${{ matrix.compiler.cc }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+        config: [linux-debug, linux-release]
+        include:
+          - os: ubuntu-22.04
+            triplet: x64-linux
+          - os: ubuntu-24.04
+            triplet: x64-linux
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@main
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ${{ matrix.triplet == 'x64-linux-gcc' && 'gcc-14 g++-14' || 'clang-14' }}
+
+    - name: Restore artifacts and install vcpkg
+      id: vcpkg-step
+      run: |
+        vcpkgCommitId=$(grep '.builtin-baseline' vcpkg.json | awk -F: '{print $2}' | tr -d '," ')
+        echo "vcpkg commit ID: $vcpkgCommitId"
+        echo "VCPKG_GIT_COMMIT_ID=$vcpkgCommitId" >> "$GITHUB_ENV"
+
+    - name: Run VCPKG
+      uses: lukka/run-vcpkg@main
+      with:
+        vcpkgGitURL: "https://github.com/microsoft/vcpkg.git"
+        vcpkgGitCommitId: ${{ env.VCPKG_GIT_COMMIT_ID }}
+
+    - name: Get latest CMake and ninja
+      uses: lukka/get-cmake@main
+
+    - name: Run CMake
+      uses: lukka/run-cmake@main
+      with:
+        configurePreset: ${{ matrix.config  }}
+        buildPreset: '${{ matrix.config }}'
+  
+    - name: Test (Linux)
+      uses: lukka/run-cmake@v10
+      with:
+        testPreset: '${{ matrix.config }}'
+    
+    - name: Run benchmark (Release only)
+      if: matrix.config == 'linux-release'
+      working-directory: build/linux-release/bin
+      run: |
+        echo "Running benchmarks..."
+        ./lockfree_benchmark --light
+    
+    - name: Upload build artifacts
+      if: matrix.config == 'linux-release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: lockfree-linux
+        path: |
+          build/linux-release/bin/lockfree_benchmark
+          build/linux-release/bin/lockfree_test
+        retention-days: 7

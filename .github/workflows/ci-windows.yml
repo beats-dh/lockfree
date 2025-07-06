@@ -1,0 +1,99 @@
+name: Build - Windows
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "src/**"
+      - "include/**"
+      - "examples/**"
+      - "CMakeLists.txt"
+      - "vcpkg.json"
+      - ".github/workflows/ci-windows.yml"
+  push:
+    paths:
+      - "src/**"
+      - "include/**"
+      - "examples/**"
+      - "CMakeLists.txt"
+      - "vcpkg.json"
+      - ".github/workflows/ci-windows.yml"
+    branches: [ main, develop ]
+  release:
+    types: [ published ]
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  MAKEFLAGS: "-j 4"
+
+jobs:
+  cancel-runs:
+    if: github.event_name == 'pull_request' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+        with:
+          access_token: ${{ github.token }}
+
+  build-windows:
+    if: ${{ github.event_name == 'push' || !github.event.pull_request.draft }}
+    name: windows-latest-${{ matrix.config }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [windows-debug, windows-release]
+        include:
+          - triplet: x64-windows
+        arch: [x64]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@main
+
+    - name: Restore artifacts and install vcpkg
+      id: vcpkg-step
+      run: |
+        $vcpkgCommitId = (Get-Content vcpkg.json | ConvertFrom-Json).'builtin-baseline'
+        Write-Host "vcpkg commit ID: $vcpkgCommitId"
+        echo "VCPKG_GIT_COMMIT_ID=$vcpkgCommitId" >> $env:GITHUB_ENV
+
+    - name: Run VCPKG
+      uses: lukka/run-vcpkg@main
+      with:
+        vcpkgGitURL: "https://github.com/microsoft/vcpkg.git"
+        vcpkgGitCommitId: ${{ env.VCPKG_GIT_COMMIT_ID }}
+
+    - name: Get latest CMake and ninja
+      uses: lukka/get-cmake@main
+    
+    - name: Run CMake
+      uses: lukka/run-cmake@main
+      with:
+        configurePreset: '${{ matrix.config }}'
+        buildPreset: '${{ matrix.config }}'
+  
+    - name: Test (Windows)
+      uses: lukka/run-cmake@v10
+      with:
+        testPreset: '${{ matrix.config }}'
+    
+    - name: Run benchmark (Release only)
+      if: matrix.config == 'windows-release'
+      working-directory: build/windows-release/bin
+      run: |
+        echo "Running benchmarks..."
+        .\lockfree_benchmark.exe --light
+    
+    - name: Upload build artifacts
+      if: matrix.config == 'windows-release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: lockfree-windows-${{ matrix.arch }}
+        path: |
+          build/windows-release/bin/*.exe
+          build/windows-release/bin/*.dll
+        retention-days: 7

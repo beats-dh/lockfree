@@ -1,3 +1,12 @@
+/**
+ * LockFree Object Pool - A high-performance, thread-safe object pool implementation
+ * Copyright (©) 2025 Daniel <daniel15042015@gmail.com>
+ * Repository: https://github.com/beats-dh/lockfree
+ * License: https://github.com/beats-dh/lockfree/blob/main/LICENSE
+ * Contributors: https://github.com/beats-dh/lockfree/graphs/contributors
+ * Website: 
+ */
+
 #pragma once
 
 #include "atomic_queue/atomic_queue.h"
@@ -5,6 +14,7 @@
 #include "parallel_hashmap/phmap.h"
 #include <span>
 #include <chrono>
+#include <memory_resource>
 
 #ifdef _MSC_VER
 	#pragma warning(push)
@@ -132,7 +142,7 @@ public:
 	 * @brief Default constructor using the default memory resource
 	 */
 	OptimizedObjectPool() :
-		OptimizedObjectPool(Allocator { std::pmr::get_default_resource() }) { }
+		OptimizedObjectPool(Allocator(std::pmr::get_default_resource())) { }
 
 	/**
 	 * @brief Construct pool with custom allocator
@@ -912,7 +922,7 @@ public:
 	 * @brief Default constructor using default memory resource
 	 */
 	SharedOptimizedObjectPool() :
-		SharedOptimizedObjectPool(Allocator { std::pmr::get_default_resource() }) { }
+		SharedOptimizedObjectPool(Allocator(std::pmr::get_default_resource())) { }
 
 	/**
 	 * @brief Construct with custom allocator

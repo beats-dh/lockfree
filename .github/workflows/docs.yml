@@ -1,0 +1,358 @@
+name: Documentation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'include/**'
+      - 'examples/**'
+      - 'docs/**'
+      - '*.md'
+      - 'CMakeLists.txt'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'include/**'
+      - 'examples/**'
+      - 'docs/**'
+      - '*.md'
+  workflow_dispatch:
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+
+jobs:
+  # Verificação de documentação
+  docs-check:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check documentation files
+      run: |
+        echo "# Documentation Check Report" > DOCS_CHECK.md
+        echo "" >> DOCS_CHECK.md
+        echo "## Required Documentation Files" >> DOCS_CHECK.md
+        
+        # Verificar arquivos essenciais
+        required_files=("README.md" "LICENSE" "BUILD.md" "DEPENDENCIES.md" "VCPKG.md")
+        for file in "${required_files[@]}"; do
+          if [ -f "$file" ]; then
+            echo "✅ $file exists" >> DOCS_CHECK.md
+          else
+            echo "❌ $file missing" >> DOCS_CHECK.md
+          fi
+        done
+        
+        echo "" >> DOCS_CHECK.md
+        echo "## Code Documentation Coverage" >> DOCS_CHECK.md
+        
+        # Verificar documentação em headers
+        total_headers=0
+        documented_headers=0
+        
+        for file in $(find include -name "*.hpp" -o -name "*.h" 2>/dev/null); do
+          total_headers=$((total_headers + 1))
+          if grep -q "@brief\|@param\|@return\|///\|/\*\*" "$file" 2>/dev/null; then
+            documented_headers=$((documented_headers + 1))
+            echo "✅ $file has documentation" >> DOCS_CHECK.md
+          else
+            echo "⚠️  $file lacks documentation" >> DOCS_CHECK.md
+          fi
+        done
+        
+        if [ $total_headers -gt 0 ]; then
+          coverage=$((documented_headers * 100 / total_headers))
+          echo "" >> DOCS_CHECK.md
+          echo "**Documentation Coverage: $coverage% ($documented_headers/$total_headers files)**" >> DOCS_CHECK.md
+        fi
+    
+    - name: Check README completeness
+      run: |
+        echo "" >> DOCS_CHECK.md
+        echo "## README.md Analysis" >> DOCS_CHECK.md
+        
+        if [ -f "README.md" ]; then
+          # Verificar seções importantes no README
+          sections=("Installation" "Usage" "Examples" "Building" "License" "Contributing")
+          for section in "${sections[@]}"; do
+            if grep -qi "$section" README.md; then
+              echo "✅ README contains $section section" >> DOCS_CHECK.md
+            else
+              echo "⚠️  README missing $section section" >> DOCS_CHECK.md
+            fi
+          done
+          
+          # Verificar badges
+          if grep -q "badge" README.md; then
+            echo "✅ README contains badges" >> DOCS_CHECK.md
+          else
+            echo "⚠️  README could benefit from status badges" >> DOCS_CHECK.md
+          fi
+        fi
+    
+    - name: Upload documentation check
+      uses: actions/upload-artifact@v4
+      with:
+        name: docs-check-report
+        path: DOCS_CHECK.md
+        retention-days: 30
+
+  # Geração de documentação com Doxygen
+  generate-doxygen:
+    name: Generate Doxygen Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        # Adicionar repositório para GCC 14
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+        sudo apt-get update
+        sudo apt-get install -y gcc-14 g++-14 ninja-build doxygen graphviz
+    
+    - name: Create Doxygen configuration
+      run: |
+        cat > Doxyfile << 'EOF'
+        # Doxygen configuration for LockFree Object Pool
+        PROJECT_NAME           = "LockFree Object Pool"
+        PROJECT_NUMBER         = "1.0.0"
+        PROJECT_BRIEF          = "High-performance lock-free object pool implementation in C++20"
+        
+        OUTPUT_DIRECTORY       = docs/doxygen
+        CREATE_SUBDIRS         = YES
+        
+        INPUT                  = include/ examples/ README.md
+        INPUT_ENCODING         = UTF-8
+        RECURSIVE              = YES
+        
+        EXTRACT_ALL            = YES
+        EXTRACT_PRIVATE        = NO
+        EXTRACT_STATIC         = YES
+        EXTRACT_LOCAL_CLASSES  = YES
+        
+        GENERATE_HTML          = YES
+        HTML_OUTPUT            = html
+        HTML_FILE_EXTENSION    = .html
+        HTML_COLORSTYLE_HUE    = 220
+        HTML_COLORSTYLE_SAT    = 100
+        HTML_COLORSTYLE_GAMMA  = 80
+        HTML_TIMESTAMP         = YES
+        HTML_DYNAMIC_SECTIONS  = YES
+        
+        GENERATE_LATEX         = NO
+        GENERATE_XML           = YES
+        
+        HAVE_DOT               = YES
+        DOT_NUM_THREADS        = 0
+        CLASS_GRAPH            = YES
+        COLLABORATION_GRAPH    = YES
+        GROUP_GRAPHS           = YES
+        INCLUDE_GRAPH          = YES
+        INCLUDED_BY_GRAPH      = YES
+        CALL_GRAPH             = YES
+        CALLER_GRAPH           = YES
+        GRAPHICAL_HIERARCHY    = YES
+        DIRECTORY_GRAPH        = YES
+        
+        USE_MDFILE_AS_MAINPAGE = README.md
+        
+        PREDEFINED             = DOXYGEN_SHOULD_SKIP_THIS
+        MACRO_EXPANSION        = YES
+        EXPAND_ONLY_PREDEF     = NO
+        
+        QUIET                  = NO
+        WARNINGS               = YES
+        WARN_IF_UNDOCUMENTED   = YES
+        WARN_IF_DOC_ERROR      = YES
+        WARN_NO_PARAMDOC       = YES
+        WARN_FORMAT            = "$file:$line: $text"
+        WARN_LOGFILE           = doxygen_warnings.log
+        EOF
+    
+    - name: Generate documentation
+      run: |
+        doxygen Doxyfile
+        
+        # Criar índice de documentação
+        echo "# Generated Documentation" > docs/doxygen/INDEX.md
+        echo "" >> docs/doxygen/INDEX.md
+        echo "Documentation generated on: $(date)" >> docs/doxygen/INDEX.md
+        echo "" >> docs/doxygen/INDEX.md
+        echo "## Available Documentation" >> docs/doxygen/INDEX.md
+        echo "- [HTML Documentation](html/index.html)" >> docs/doxygen/INDEX.md
+        echo "- [XML Documentation](xml/)" >> docs/doxygen/INDEX.md
+        echo "" >> docs/doxygen/INDEX.md
+        
+        # Incluir warnings se existirem
+        if [ -f "doxygen_warnings.log" ] && [ -s "doxygen_warnings.log" ]; then
+          echo "## Documentation Warnings" >> docs/doxygen/INDEX.md
+          echo "\`\`\`" >> docs/doxygen/INDEX.md
+          cat doxygen_warnings.log >> docs/doxygen/INDEX.md
+          echo "\`\`\`" >> docs/doxygen/INDEX.md
+        fi
+    
+    - name: Upload Doxygen documentation
+      uses: actions/upload-artifact@v4
+      with:
+        name: doxygen-docs
+        path: |
+          docs/doxygen/
+          doxygen_warnings.log
+        retention-days: 30
+    
+    - name: Deploy to GitHub Pages (main branch only)
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/doxygen/html
+        destination_dir: api-docs
+
+  # Verificação de links em documentação
+  link-check:
+    name: Documentation Link Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install markdown link checker
+      run: npm install -g markdown-link-check
+    
+    - name: Check links in markdown files
+      run: |
+        echo "# Link Check Report" > LINK_CHECK.md
+        echo "" >> LINK_CHECK.md
+        
+        # Verificar todos os arquivos markdown
+        find . -name "*.md" -not -path "./node_modules/*" -not -path "./.git/*" | while read file; do
+          echo "## Checking $file" >> LINK_CHECK.md
+          if markdown-link-check "$file" --quiet; then
+            echo "✅ All links valid in $file" >> LINK_CHECK.md
+          else
+            echo "❌ Broken links found in $file" >> LINK_CHECK.md
+            markdown-link-check "$file" >> LINK_CHECK.md 2>&1 || true
+          fi
+          echo "" >> LINK_CHECK.md
+        done
+    
+    - name: Upload link check report
+      uses: actions/upload-artifact@v4
+      with:
+        name: link-check-report
+        path: LINK_CHECK.md
+        retention-days: 30
+
+  # Geração de métricas de código
+  code-metrics:
+    name: Code Metrics
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install cloc
+      run: sudo apt-get update && sudo apt-get install -y cloc
+    
+    - name: Generate code metrics
+      run: |
+        echo "# Code Metrics Report" > CODE_METRICS.md
+        echo "" >> CODE_METRICS.md
+        echo "Generated on: $(date)" >> CODE_METRICS.md
+        echo "" >> CODE_METRICS.md
+        
+        echo "## Lines of Code" >> CODE_METRICS.md
+        echo "\`\`\`" >> CODE_METRICS.md
+        cloc include/ examples/ src/ --md >> CODE_METRICS.md
+        echo "\`\`\`" >> CODE_METRICS.md
+        echo "" >> CODE_METRICS.md
+        
+        echo "## File Structure" >> CODE_METRICS.md
+        echo "\`\`\`" >> CODE_METRICS.md
+        tree -I 'build|vcpkg*|.git' -L 3 >> CODE_METRICS.md 2>/dev/null || find . -type d -not -path './build*' -not -path './vcpkg*' -not -path './.git*' | head -20 >> CODE_METRICS.md
+        echo "\`\`\`" >> CODE_METRICS.md
+        echo "" >> CODE_METRICS.md
+        
+        echo "## Header Files Analysis" >> CODE_METRICS.md
+        header_count=$(find include -name "*.hpp" -o -name "*.h" | wc -l)
+        echo "- Total header files: $header_count" >> CODE_METRICS.md
+        
+        example_count=$(find examples -name "*.cpp" | wc -l)
+        echo "- Example files: $example_count" >> CODE_METRICS.md
+        
+        src_count=$(find src -name "*.cpp" -o -name "*.hpp" | wc -l 2>/dev/null || echo "0")
+        echo "- Source files: $src_count" >> CODE_METRICS.md
+    
+    - name: Upload code metrics
+      uses: actions/upload-artifact@v4
+      with:
+        name: code-metrics
+        path: CODE_METRICS.md
+        retention-days: 30
+
+  # Consolidação de todos os relatórios de documentação
+  docs-summary:
+    name: Documentation Summary
+    needs: [docs-check, generate-doxygen, link-check, code-metrics]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all documentation reports
+      uses: actions/download-artifact@v4
+      with:
+        path: docs-reports
+    
+    - name: Create documentation summary
+      run: |
+        echo "# Documentation Summary Report" > DOCS_SUMMARY.md
+        echo "" >> DOCS_SUMMARY.md
+        echo "Generated on: $(date)" >> DOCS_SUMMARY.md
+        echo "Workflow: ${{ github.workflow }}" >> DOCS_SUMMARY.md
+        echo "Run ID: ${{ github.run_id }}" >> DOCS_SUMMARY.md
+        echo "" >> DOCS_SUMMARY.md
+        
+        # Incluir verificação de documentação
+        if [ -f "docs-reports/docs-check-report/DOCS_CHECK.md" ]; then
+          cat "docs-reports/docs-check-report/DOCS_CHECK.md" >> DOCS_SUMMARY.md
+          echo "" >> DOCS_SUMMARY.md
+        fi
+        
+        # Incluir verificação de links
+        if [ -f "docs-reports/link-check-report/LINK_CHECK.md" ]; then
+          cat "docs-reports/link-check-report/LINK_CHECK.md" >> DOCS_SUMMARY.md
+          echo "" >> DOCS_SUMMARY.md
+        fi
+        
+        # Incluir métricas de código
+        if [ -f "docs-reports/code-metrics/CODE_METRICS.md" ]; then
+          cat "docs-reports/code-metrics/CODE_METRICS.md" >> DOCS_SUMMARY.md
+          echo "" >> DOCS_SUMMARY.md
+        fi
+        
+        # Status da documentação Doxygen
+        echo "## Doxygen Documentation" >> DOCS_SUMMARY.md
+        if [ -d "docs-reports/doxygen-docs" ]; then
+          echo "✅ Doxygen documentation generated successfully" >> DOCS_SUMMARY.md
+          if [ -f "docs-reports/doxygen-docs/doxygen_warnings.log" ]; then
+            warning_count=$(wc -l < "docs-reports/doxygen-docs/doxygen_warnings.log" 2>/dev/null || echo "0")
+            echo "⚠️  Doxygen warnings: $warning_count" >> DOCS_SUMMARY.md
+          fi
+        else
+          echo "❌ Doxygen documentation generation failed" >> DOCS_SUMMARY.md
+        fi
+    
+    - name: Upload documentation summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: docs-summary
+        path: DOCS_SUMMARY.md
+        retention-days: 90

@@ -1,3 +1,12 @@
+/**
+ * LockFree Object Pool - A high-performance, thread-safe object pool implementation
+ * Copyright (©) 2025 Daniel <daniel15042015@gmail.com>
+ * Repository: https://github.com/beats-dh/lockfree
+ * License: https://github.com/beats-dh/lockfree/blob/main/LICENSE
+ * Contributors: https://github.com/beats-dh/lockfree/graphs/contributors
+ * Website: 
+ */
+
 #include "../src/benchmark/main_benchmark.hpp"
 #include <iostream>
 #include <string>
@@ -167,6 +176,9 @@ static void runBenchmarkModule(const BenchmarkConfig &config) {
 				BenchmarkConfig::DEFAULT_MULTI_THREAD_BASE_OPS,
 				config.warmup_ops
 			);
+			break;
+		case BenchmarkConfig::THREADID:
+			// ThreadId optimization tests are handled in the earlier switch
 			break;
 
 		case BenchmarkConfig::LIGHT:

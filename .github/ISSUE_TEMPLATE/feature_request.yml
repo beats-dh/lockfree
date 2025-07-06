@@ -1,0 +1,182 @@
+name: ✨ Feature Request
+description: Sugerir uma nova funcionalidade para o LockFree Object Pool
+title: "[FEATURE] "
+labels: ["enhancement", "needs-discussion"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por sugerir uma nova funcionalidade! Por favor, preencha as informações abaixo para nos ajudar a entender sua proposta.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Resumo da Funcionalidade
+      description: Um resumo claro e conciso da funcionalidade que você gostaria de ver implementada.
+      placeholder: Eu gostaria que o projeto tivesse...
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema que Resolve
+      description: |
+        Descreva o problema ou limitação atual que esta funcionalidade resolveria.
+        Isso nos ajuda a entender o contexto e a importância da sua sugestão.
+      placeholder: |
+        Atualmente, quando eu tento fazer X, eu encontro o problema Y...
+        Isso seria útil porque...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solução Proposta
+      description: |
+        Descreva detalhadamente como você imagina que esta funcionalidade deveria funcionar.
+        Inclua exemplos de uso se possível.
+      placeholder: |
+        Eu imagino que a funcionalidade funcionaria assim:
+        
+        ```cpp
+        // Exemplo de código
+        auto pool = LockFreePool<MyObject>();
+        // nova funcionalidade aqui
+        ```
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Categoria da Funcionalidade
+      description: Em qual categoria esta funcionalidade se encaixa?
+      options:
+        - Performance/Otimização
+        - API/Interface
+        - Configuração/Customização
+        - Debugging/Logging
+        - Documentação
+        - Testes/Benchmarks
+        - Compatibilidade
+        - Segurança
+        - Outro
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Prioridade Sugerida
+      description: Qual você considera ser a prioridade desta funcionalidade?
+      options:
+        - Baixa - seria legal ter
+        - Média - melhoraria significativamente o projeto
+        - Alta - funcionalidade crítica ou muito solicitada
+        - Crítica - bloqueador para casos de uso importantes
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas Consideradas
+      description: |
+        Descreva quaisquer soluções alternativas ou funcionalidades que você considerou.
+        Isso inclui workarounds atuais que você pode estar usando.
+      placeholder: |
+        Eu considerei:
+        1. Usar a biblioteca X, mas...
+        2. Implementar uma solução customizada, mas...
+        3. Atualmente eu contorno isso fazendo...
+    validations:
+      required: false
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impacto Esperado
+      description: |
+        Como esta funcionalidade impactaria o projeto e seus usuários?
+        Considere performance, usabilidade, manutenibilidade, etc.
+      placeholder: |
+        Esta funcionalidade:
+        - Melhoraria a performance em X%
+        - Simplificaria o uso para casos Y
+        - Permitiria novos casos de uso Z
+    validations:
+      required: false
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Considerações de Implementação
+      description: |
+        Se você tem ideias sobre como implementar esta funcionalidade, compartilhe aqui.
+        Inclua considerações sobre compatibilidade, breaking changes, etc.
+      placeholder: |
+        Possíveis abordagens de implementação:
+        1. Adicionar nova classe/método...
+        2. Modificar comportamento existente...
+        3. Considerações sobre thread-safety...
+        4. Impacto na API existente...
+    validations:
+      required: false
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Exemplos de Uso
+      description: |
+        Forneça exemplos concretos de como esta funcionalidade seria usada.
+        Isso ajuda a validar a utilidade e o design da funcionalidade.
+      render: cpp
+      placeholder: |
+        // Exemplo 1: Caso de uso básico
+        auto pool = LockFreePool<MyObject>(config);
+        // usar nova funcionalidade
+        
+        // Exemplo 2: Caso de uso avançado
+        // código mais complexo aqui
+    validations:
+      required: false
+
+  - type: textarea
+    id: references
+    attributes:
+      label: Referências
+      description: |
+        Links para documentação, papers, outras implementações ou discussões relevantes.
+      placeholder: |
+        - Paper sobre algoritmo X: https://...
+        - Implementação similar em projeto Y: https://...
+        - Discussão relacionada: https://...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribuição
+      description: Você estaria disposto a contribuir com a implementação?
+      options:
+        - label: Eu gostaria de implementar esta funcionalidade
+        - label: Eu posso ajudar com testes e validação
+        - label: Eu posso ajudar com documentação
+        - label: Eu posso ajudar com review do código
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Checklist
+      description: Por favor, confirme que você:
+      options:
+        - label: Pesquisei por requests similares antes de criar este
+          required: true
+        - label: Esta funcionalidade se alinha com os objetivos do projeto
+          required: true
+        - label: Considerei o impacto na performance e compatibilidade
+          required: true

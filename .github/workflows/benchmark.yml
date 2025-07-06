@@ -1,0 +1,251 @@
+name: Benchmark
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "src/**"
+      - "include/**"
+      - "examples/**"
+      - "CMakeLists.txt"
+      - "vcpkg.json"
+      - ".github/workflows/benchmark.yml"
+  push:
+    paths:
+      - "src/**"
+      - "include/**"
+      - "examples/**"
+      - "CMakeLists.txt"
+      - "vcpkg.json"
+      - ".github/workflows/benchmark.yml"
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sunday at 2 AM UTC
+
+env:
+  VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+  CMAKE_BUILD_PARALLEL_LEVEL: 4
+  MAKEFLAGS: "-j 4"
+
+jobs:
+  cancel-runs:
+    if: github.event_name == 'pull_request' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.12.1
+        with:
+          access_token: ${{ github.token }}
+
+  benchmark-ubuntu:
+    if: ${{ github.event_name == 'push' || github.event_name == 'schedule' || !github.event.pull_request.draft }}
+    name: ubuntu-latest-benchmark
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            compiler_cc: gcc-14
+            compiler_cxx: g++-14
+            generator: Ninja
+            executable: ./lockfree_benchmark
+          - os: windows-latest
+            generator: "Visual Studio 17 2022"
+            arch: x64
+            executable: .\lockfree_benchmark.exe
+          - os: macos-latest
+            generator: Ninja
+            executable: ./lockfree_benchmark
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        # Adicionar repositório para GCC 14
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+        sudo apt-get update
+        sudo apt-get install -y gcc-14 g++-14 ninja-build
+    
+    - name: Install dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: brew install ninja
+    
+    - name: Install latest CMake and Ninja
+      uses: lukka/get-cmake@latest
+    
+    - name: Setup vcpkg
+      uses: lukka/run-vcpkg@v11
+      with:
+        vcpkgGitCommitId: 'a42af01b72c28a8e1d7b48107b33e4f286a55ef6'
+        vcpkgJsonGlob: 'vcpkg.json'
+    
+    - name: Configure CMake (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      uses: lukka/run-cmake@v10
+      env:
+        CC: ${{ matrix.compiler_cc }}
+        CXX: ${{ matrix.compiler_cxx }}
+      with:
+        configurePreset: 'linux-release'
+    
+    - name: Build (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      uses: lukka/run-cmake@v10
+      env:
+        CC: ${{ matrix.compiler_cc }}
+        CXX: ${{ matrix.compiler_cxx }}
+      with:
+        buildPreset: 'linux-release'
+    
+    - name: Configure CMake (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: lukka/run-cmake@v10
+      with:
+        configurePreset: 'windows-release'
+    
+    - name: Build (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: lukka/run-cmake@v10
+      with:
+        buildPreset: 'windows-release'
+    
+    - name: Configure CMake (macOS)
+      if: matrix.os == 'macos-latest'
+      uses: lukka/run-cmake@v10
+      with:
+        configurePreset: 'macos-release'
+    
+    - name: Build (macOS)
+      if: matrix.os == 'macos-latest'
+      uses: lukka/run-cmake@v10
+      with:
+        buildPreset: 'macos-release'
+    
+    - name: Run Benchmarks - Pool Operations
+      working-directory: build/bin
+      run: |
+        echo "=== Pool Operations Benchmarks ==="
+        ${{ matrix.executable }} --benchmark_filter=".*Pool.*" --benchmark_repetitions=${{ github.event.inputs.iterations || '10' }} --benchmark_report_aggregates_only=true --benchmark_format=json --benchmark_out=pool_benchmarks.json
+    
+    - name: Run Benchmarks - Stress Tests
+      working-directory: build/bin
+      run: |
+        echo "=== Stress Test Benchmarks ==="
+        ${{ matrix.executable }} --benchmark_filter=".*Stress.*" --benchmark_repetitions=${{ github.event.inputs.iterations || '10' }} --benchmark_report_aggregates_only=true --benchmark_format=json --benchmark_out=stress_benchmarks.json
+    
+    - name: Run Benchmarks - Multithreaded
+      working-directory: build/bin
+      run: |
+        echo "=== Multithreaded Benchmarks ==="
+        ${{ matrix.executable }} --benchmark_filter=".*Multithread.*" --benchmark_repetitions=${{ github.event.inputs.iterations || '10' }} --benchmark_report_aggregates_only=true --benchmark_format=json --benchmark_out=multithread_benchmarks.json
+    
+    - name: Run Custom Filter Benchmarks
+      if: github.event.inputs.benchmark_filter != ''
+      working-directory: build/bin
+      run: |
+        echo "=== Custom Filter Benchmarks ==="
+        ${{ matrix.executable }} --benchmark_filter="${{ github.event.inputs.benchmark_filter }}" --benchmark_repetitions=${{ github.event.inputs.iterations || '10' }} --benchmark_report_aggregates_only=true --benchmark_format=json --benchmark_out=custom_benchmarks.json
+    
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results-${{ matrix.os }}
+        path: |
+          build/bin/*_benchmarks.json
+        retention-days: 30
+    
+    - name: Generate benchmark summary
+      working-directory: build/bin
+      shell: bash
+      run: |
+        echo "# Benchmark Results Summary - ${{ matrix.os }}" > benchmark_summary.md
+        echo "" >> benchmark_summary.md
+        echo "## System Information" >> benchmark_summary.md
+        echo "- OS: ${{ matrix.os }}" >> benchmark_summary.md
+        echo "- Date: $(date)" >> benchmark_summary.md
+        echo "- Iterations: ${{ github.event.inputs.iterations || '10' }}" >> benchmark_summary.md
+        echo "" >> benchmark_summary.md
+        
+        # Processar resultados dos benchmarks se existirem
+        for file in *_benchmarks.json; do
+          if [ -f "$file" ]; then
+            echo "## Results from $file" >> benchmark_summary.md
+            echo "\`\`\`json" >> benchmark_summary.md
+            head -20 "$file" >> benchmark_summary.md
+            echo "\`\`\`" >> benchmark_summary.md
+            echo "" >> benchmark_summary.md
+          fi
+        done
+    
+    - name: Upload benchmark summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-summary-${{ matrix.os }}
+        path: build/bin/benchmark_summary.md
+        retention-days: 30
+
+  # Job para consolidar resultados de todos os sistemas operacionais
+  consolidate-results:
+    name: Consolidate Benchmark Results
+    needs: benchmark
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all benchmark results
+      uses: actions/download-artifact@v4
+      with:
+        path: benchmark-results
+    
+    - name: Create consolidated report
+      run: |
+        echo "# Consolidated Benchmark Report" > BENCHMARK_REPORT.md
+        echo "" >> BENCHMARK_REPORT.md
+        echo "Generated on: $(date)" >> BENCHMARK_REPORT.md
+        echo "Workflow: ${{ github.workflow }}" >> BENCHMARK_REPORT.md
+        echo "Run ID: ${{ github.run_id }}" >> BENCHMARK_REPORT.md
+        echo "" >> BENCHMARK_REPORT.md
+        
+        # Adicionar sumários de cada OS
+        for summary_dir in benchmark-results/benchmark-summary-*; do
+          if [ -d "$summary_dir" ]; then
+            echo "---" >> BENCHMARK_REPORT.md
+            cat "$summary_dir/benchmark_summary.md" >> BENCHMARK_REPORT.md
+            echo "" >> BENCHMARK_REPORT.md
+          fi
+        done
+        
+        # Listar todos os arquivos de resultado disponíveis
+        echo "## Available Result Files" >> BENCHMARK_REPORT.md
+        find benchmark-results -name "*.json" -type f | while read file; do
+          echo "- $file" >> BENCHMARK_REPORT.md
+        done
+    
+    - name: Upload consolidated report
+      uses: actions/upload-artifact@v4
+      with:
+        name: consolidated-benchmark-report
+        path: BENCHMARK_REPORT.md
+        retention-days: 90
+    
+    - name: Comment on PR (if applicable)
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('BENCHMARK_REPORT.md', 'utf8');
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## 📊 Benchmark Results\n\n${report}`
+          });

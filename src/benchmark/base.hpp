@@ -1,3 +1,12 @@
+/**
+ * LockFree Object Pool - A high-performance, thread-safe object pool implementation
+ * Copyright (©) 2025 Daniel <daniel15042015@gmail.com>
+ * Repository: https://github.com/beats-dh/lockfree
+ * License: https://github.com/beats-dh/lockfree/blob/main/LICENSE
+ * Contributors: https://github.com/beats-dh/lockfree/graphs/contributors
+ * Website: 
+ */
+
 #pragma once
 
 #include "../include/lockfree/lockfree.hpp"
@@ -19,7 +28,7 @@ namespace benchmark {
 		static constexpr size_t BUFFER_SIZE = 65535 - sizeof(size_t) - sizeof(uint32_t) - sizeof(int16_t);
 
 		LargeTestObject() noexcept :
-			m_size(0), m_checksum(0), threadId(-1) { }
+			threadId(-1), m_size(0), m_checksum(0) { }
 
 		~LargeTestObject() = default;
 

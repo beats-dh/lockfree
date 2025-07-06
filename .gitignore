@@ -118,5 +118,4 @@ coverage/
 
 # Benchmark results
 benchmark_results/
-*.json
 *.csv

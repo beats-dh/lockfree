@@ -97,7 +97,7 @@ OptimizedObjectPool<T, 2048, false, std::pmr::polymorphic_allocator<T>, 8>
 
 1. **Clone o repositório**:
    ```bash
-   git clone https://github.com/seu-usuario/lockfree-object-pool.git
+   git clone https://github.com/beats-dh/lockfree.git
    cd lockfree-object-pool
    ```
 

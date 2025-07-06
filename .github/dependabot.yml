@@ -1,0 +1,57 @@
+# Configuração do Dependabot para manter dependências atualizadas
+version: 2
+updates:
+  # Atualizações do GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "@beats-dh"
+    assignees:
+      - "@beats-dh"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    
+  # Monitoramento de vcpkg (manual, pois não há suporte direto)
+  # O Dependabot não suporta vcpkg nativamente, mas podemos
+  # configurar para monitorar mudanças no vcpkg.json
+  - package-ecosystem: "npm"  # Usando npm como proxy para vcpkg.json
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 3
+    ignore:
+      # Ignorar todas as dependências npm, pois não usamos npm
+      - dependency-name: "*"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "vcpkg"
+
+# Configurações globais
+# Para vcpkg, recomenda-se verificação manual periódica das versões
+# das dependências listadas em vcpkg.json:
+#
+# Dependências atuais:
+# - atomic-queue: Verificar https://github.com/max0x7ba/atomic_queue
+# - parallel-hashmap: Verificar https://github.com/greg7mdp/parallel-hashmap
+# - benchmark: Verificar https://github.com/google/benchmark
+# - gtest: Verificar https://github.com/google/googletest
+# - bshoshany-thread-pool: Verificar https://github.com/bshoshany/thread-pool
+# - spdlog: Verificar https://github.com/gabime/spdlog
+#
+# Para atualizar manualmente:
+# 1. Verificar novas versões no vcpkg registry
+# 2. Atualizar vcpkg.json se necessário
+# 3. Testar build e benchmarks
+# 4. Atualizar DEPENDENCIES.md com novas versões
