@@ -459,3 +459,4 @@ public:
 private:
 	OptimizedObjectPool<T, PoolSize, EnableStats, Allocator, LocalCacheSize> m_pool;
 };
+
