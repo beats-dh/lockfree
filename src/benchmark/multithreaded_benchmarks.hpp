@@ -107,7 +107,7 @@ namespace benchmark {
 						using ResultType = typename decltype(pool.acquire())::value_type;
 
 						if constexpr (std::is_pointer_v<ResultType>) {
-							// Caminho correto para OptimizedObjectPool (ponteiro bruto) 
+							// Caminho correto para OptimizedObjectPool (ponteiro bruto)
 							for (size_t i = 0; i < ops_per_thread; ++i) {
 								auto result = pool.acquire();
 								if (!result) [[unlikely]] {
@@ -120,7 +120,7 @@ namespace benchmark {
 								pool.release(obj); // O release que estava faltando
 							}
 						} else {
-							// Caminho correto para SharedOptimizedObjectPool (shared_ptr) 
+							// Caminho correto para SharedOptimizedObjectPool (shared_ptr)
 							for (size_t i = 0; i < ops_per_thread; ++i) {
 								auto result = pool.acquire();
 								if (!result) [[unlikely]] {
