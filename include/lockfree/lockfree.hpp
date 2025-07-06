@@ -16,7 +16,6 @@
 #include <chrono>
 #include <memory_resource>
 #include <expected>
-#include <version>
 
 #ifdef _MSC_VER
 	#pragma warning(push)
@@ -51,7 +50,7 @@
 	#endif
 #endif
 
-#ifdef __AVX2__
+#if defined(__AVX2__) || defined(_MSC_VER)
 	#include <immintrin.h>
 #endif
 
@@ -245,11 +244,32 @@ public:
 		auto &cache = local_cache();
 		if (cache.size > 0uz) [[likely]] {
 			if (cache.is_valid()) [[likely]] {
-				pointer obj = cache.data[--cache.size];
+				const size_t new_size = cache.size - 1;
+				pointer obj = cache.data[new_size];
+				cache.size = new_size;
+
 				if constexpr (EnableStats) {
 					m_stats.same_thread_hits.fetch_add(1, std::memory_order_relaxed);
 					m_stats.cache_hits.fetch_add(1, std::memory_order_relaxed);
 				}
+
+				// OTIMIZAÇÃO: Prefetching para o próximo objeto no cache
+				if (new_size > 0) [[likely]] {
+					const size_t prefetch_idx = new_size - 1;
+#if defined(__GNUC__) || defined(__clang__)
+					__builtin_prefetch(cache.data[prefetch_idx], 1, 3); // 1=write, 3=high locality
+#elif defined(_MSC_VER) && defined(_M_X64)
+					_mm_prefetch(reinterpret_cast<const char*>(cache.data[prefetch_idx]), _MM_HINT_T0);
+#endif
+				}
+
+// OTIMIZAÇÃO: Prefetching para o objeto que está sendo retornado
+#if defined(__GNUC__) || defined(__clang__)
+				__builtin_prefetch(obj, 1, 3);
+#elif defined(_MSC_VER) && defined(_M_X64)
+				_mm_prefetch(reinterpret_cast<const char*>(obj), _MM_HINT_T0);
+#endif
+
 				construct_or_reset(obj, std::forward<Args>(args)...);
 				return obj;
 			}
@@ -293,8 +313,20 @@ public:
 		if (same_thread) [[likely]] {
 			if (!this->m_shutdown_flag.load(std::memory_order_relaxed)) [[likely]] {
 				auto &cache = this->local_cache();
-				if (cache.is_valid() && cache.size < LocalCacheSize) [[likely]] {
-					cache.data[cache.size++] = obj;
+				const size_t current_size = cache.size;
+
+				if (cache.is_valid() && current_size < LocalCacheSize) [[likely]] {
+					cache.data[current_size] = obj;
+					cache.size = current_size + 1;
+
+					// OTIMIZAÇÃO: Prefetching para o objeto que acabou de ser inserido no cache
+					if (current_size > 0) [[likely]] {
+#if defined(__GNUC__) || defined(__clang__)
+						__builtin_prefetch(cache.data[current_size - 1], 0, 3); // 0=read, 3=high locality
+#elif defined(_MSC_VER) && defined(_M_X64)
+						_mm_prefetch(reinterpret_cast<const char*>(cache.data[current_size - 1]), _MM_HINT_T2);
+#endif
+					}
 					return;
 				}
 			}
@@ -589,27 +621,69 @@ private:
 
 	/**
 	 * @brief Constrói ou reseta um objeto de forma otimizada com otimizações SIMD.
-	 * @tparam Args Tipos dos argumentos do construtor.
-	 * @param obj Ponteiro para o objeto a ser inicializado.
-	 * @param args Argumentos para construção/reset.
-	 * @details Inicialização de objetos com múltiplas estratégias: usa `reset()` para eficiência da pool,
-	 * `build()` para inicialização complexa, cópia otimizada com SIMD para tipos triviais,
-	 * e reconstrução completa para tipos complexos.
+	 * @details Esta função foi restaurada para incluir a lógica de cópia rápida usando SIMD
+	 * para tipos que são trivialmente copiáveis. Isso acelera significativamente a
+	 * reinicialização de objetos quando eles são passados por valor.
 	 */
 	template <typename... Args>
 	GNUHOT GNUALWAYSINLINE void construct_or_reset(pointer obj, Args &&... args) noexcept {
 		if (!obj) [[unlikely]] {
 			return;
 		}
+
 		if constexpr (HasReset<T, Args...>) {
 			try {
 				obj->reset(std::forward<Args>(args)...);
+				return;
 			} catch (...) { }
-		} else if constexpr (HasBuild<T, Args...>) {
+		}
+
+		if constexpr (HasBuild<T, Args...>) {
 			try {
 				obj->build(std::forward<Args>(args)...);
+				return;
 			} catch (...) { }
-		} else if constexpr (!std::is_trivially_destructible_v<T> || sizeof...(Args) > 0) {
+		}
+
+		// OTIMIZAÇÃO: Lógica de cópia rápida com SIMD para tipos triviais
+		if constexpr (std::is_trivially_copyable_v<T> && sizeof...(Args) == 1) {
+			using FirstArg = std::decay_t<std::tuple_element_t<0, std::tuple<Args...>>>;
+			if constexpr (std::is_same_v<FirstArg, T>) {
+				const T &src = std::get<0>(std::forward_as_tuple(args...));
+				if constexpr (sizeof(T) == 1) {
+					*reinterpret_cast<uint8_t*>(obj) = *reinterpret_cast<const uint8_t*>(&src);
+				} else if constexpr (sizeof(T) == 2) {
+					*reinterpret_cast<uint16_t*>(obj) = *reinterpret_cast<const uint16_t*>(&src);
+				} else if constexpr (sizeof(T) == 4) {
+					*reinterpret_cast<uint32_t*>(obj) = *reinterpret_cast<const uint32_t*>(&src);
+				} else if constexpr (sizeof(T) == 8) {
+					*reinterpret_cast<uint64_t*>(obj) = *reinterpret_cast<const uint64_t*>(&src);
+				} else if constexpr (sizeof(T) == 16) {
+#ifdef __SSE2__
+					_mm_storeu_si128(reinterpret_cast<__m128i*>(obj), _mm_loadu_si128(reinterpret_cast<const __m128i*>(&src)));
+#else
+					std::memcpy(obj, &src, 16);
+#endif
+				} else if constexpr (sizeof(T) == 32) {
+#ifdef __AVX__
+					_mm256_storeu_si256(reinterpret_cast<__m256i*>(obj), _mm256_loadu_si256(reinterpret_cast<const __m256i*>(&src)));
+#else
+					std::memcpy(obj, &src, 32);
+#endif
+				} else if constexpr (sizeof(T) == 64) {
+#ifdef __AVX512F__
+					_mm512_storeu_si512(reinterpret_cast<__m512i*>(obj), _mm512_loadu_si512(reinterpret_cast<const __m512i*>(&src)));
+#else
+					std::memcpy(obj, &src, 64);
+#endif
+				} else {
+					std::memcpy(obj, &src, sizeof(T));
+				}
+				return;
+			}
+		}
+
+		if constexpr (!std::is_trivially_destructible_v<T> || sizeof...(Args) > 0) {
 			try {
 				if constexpr (!std::is_trivially_destructible_v<T>) {
 					std::destroy_at(obj);
@@ -627,7 +701,7 @@ private:
  * na maioria das operações de `acquire` e `release`.
  */
 template <typename T, size_t P, bool E, typename A, size_t L>
-thread_local typename OptimizedObjectPool<T, P, E, A, L>::ThreadCache OptimizedObjectPool<T, P, E, A, L>::thread_cache;
+thread_local OptimizedObjectPool<T, P, E, A, L>::ThreadCache OptimizedObjectPool<T, P, E, A, L>::thread_cache;
 
 /**
  * @brief Implementação do destrutor de `ThreadCache`.
@@ -648,16 +722,13 @@ OptimizedObjectPool<T, P, E, A, L>::ThreadCache::~ThreadCache() noexcept {
 		if (!obj) {
 			continue;
 		}
-		bool returned = false;
 		for (const auto &[pool, timestamp] : instances) {
 			if (pool && !pool->m_shutdown_flag.load(std::memory_order_acquire)) {
 				if (pool->safe_return_to_global(obj)) {
-					returned = true;
 					break;
 				}
 			}
 		}
-		// O bloco 'if (!returned)' foi removido para evitar a chamada incorreta de 'delete'.
 	}
 }
 

@@ -9,6 +9,10 @@ if(DEFINED ENV{VCPKG_DEFAULT_TRIPLET} AND NOT DEFINED VCPKG_TARGET_TRIPLET)
     set(VCPKG_TARGET_TRIPLET "$ENV{VCPKG_DEFAULT_TRIPLET}" CACHE STRING "")
 endif()
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules")
+
+include(Simd)
+
 project(LockFreeObjectPool VERSION 1.0.0 LANGUAGES CXX)
 
 # Set C++20 standard
@@ -115,6 +119,8 @@ target_link_libraries(lockfree_benchmark PRIVATE
     spdlog::spdlog_header_only
 )
 target_compile_features(lockfree_benchmark PRIVATE cxx_std_20)
+
+configure_simd_flags(lockfree_benchmark)
 
 # Performance-specific optimizations for benchmark
 target_compile_definitions(lockfree_benchmark PRIVATE
