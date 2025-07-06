@@ -4,7 +4,7 @@
  * Repository: https://github.com/beats-dh/lockfree
  * License: https://github.com/beats-dh/lockfree/blob/main/LICENSE
  * Contributors: https://github.com/beats-dh/lockfree/graphs/contributors
- * Website: 
+ * Website:
  */
 
 #pragma once
@@ -23,7 +23,6 @@ namespace benchmark {
 	 */
 	class MainBenchmark : public BenchmarkBase {
 	public:
-
 		/**
 		 * @brief Print optimal configuration recommendations
 		 */
@@ -148,48 +147,48 @@ namespace benchmark {
 		static void runQuickIntegrationTest() {
 			std::cout << "\n🧪 INTEGRATION TEST:\n";
 			std::cout << std::string(50, 0x2D) << "\n";
-			
+
 			using TestPool = SharedOptimizedObjectPool<LargeTestObject, 64, true>;
 			TestPool test_pool;
 			test_pool.prewarm(16);
-			
+
 			// Single-threaded test
 			{
 				std::vector<std::shared_ptr<LargeTestObject>> objects;
 				objects.reserve(32);
-				
+
 				for (int i = 0; i < 32; ++i) {
-					auto obj = test_pool.acquire();
+					auto obj = test_pool.acquire().value();
 					if (obj) {
 						obj->writeString("integration test");
 						obj->writeUInt32(static_cast<uint32_t>(i));
 						objects.push_back(obj);
 					}
 				}
-				
+
 				auto stats = test_pool.get_stats();
 				std::cout << "✓ Single-threaded: " << objects.size() << " objects acquired\n";
-				std::cout << "  Cache hit rate: " << std::fixed << std::setprecision(1) 
+				std::cout << "  Cache hit rate: " << std::fixed << std::setprecision(1)
 						  << (stats.same_thread_hits * 100.0 / stats.acquires) << "%\n";
-				
+
 				objects.clear();
 			}
-			
+
 			// Multi-threaded test
 			{
 				const size_t num_threads = 4;
 				const size_t ops_per_thread = 100;
-				std::atomic<size_t> total_acquired{0};
-				
+				std::atomic<size_t> total_acquired { 0 };
+
 				std::vector<std::thread> threads;
 				std::barrier sync_point(static_cast<std::ptrdiff_t>(num_threads));
-				
+
 				for (size_t t = 0; t < num_threads; ++t) {
 					threads.emplace_back([&, t]() {
 						sync_point.arrive_and_wait();
-						
+
 						for (size_t i = 0; i < ops_per_thread; ++i) {
-							auto obj = test_pool.acquire();
+							auto obj = test_pool.acquire().value();
 							if (obj) {
 								obj->writeUInt32(static_cast<uint32_t>(t * 1000 + i));
 								total_acquired.fetch_add(1);
@@ -197,19 +196,19 @@ namespace benchmark {
 						}
 					});
 				}
-				
-				for (auto& thread : threads) {
+
+				for (auto &thread : threads) {
 					thread.join();
 				}
-				
+
 				auto stats = test_pool.get_stats();
 				std::cout << "✓ Multi-threaded: " << total_acquired << " total objects acquired\n";
 				std::cout << "  Cross-thread ops: " << stats.cross_thread_ops << " ("
-						  << std::fixed << std::setprecision(1) 
+						  << std::fixed << std::setprecision(1)
 						  << (stats.cross_thread_ops * 100.0 / stats.acquires) << "%)\n";
 				std::cout << "  Objects in use: " << stats.in_use << " (should be 0)\n";
 			}
-			
+
 			std::cout << "✅ Integration test passed!\n\n";
 		}
 

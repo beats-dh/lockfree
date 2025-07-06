@@ -4,7 +4,7 @@
  * Repository: https://github.com/beats-dh/lockfree
  * License: https://github.com/beats-dh/lockfree/blob/main/LICENSE
  * Contributors: https://github.com/beats-dh/lockfree/graphs/contributors
- * Website: 
+ * Website:
  */
 #pragma once
 
@@ -22,14 +22,13 @@ namespace benchmark {
 	 */
 	class BaselineBenchmarks : public BenchmarkBase {
 	public:
-		
 		/**
 		 * @brief Benchmark malloc/free allocation
 		 */
 		static BenchmarkResult benchmarkMalloc(size_t ops) {
 			std::vector<double> times;
 			times.reserve(10);
-			
+
 			for (int run = 0; run < 10; ++run) {
 				auto start = Clock::now();
 				for (size_t i = 0; i < ops; ++i) {
@@ -54,7 +53,7 @@ namespace benchmark {
 		static BenchmarkResult benchmarkNew(size_t ops) {
 			std::vector<double> times;
 			times.reserve(10);
-			
+
 			for (int run = 0; run < 10; ++run) {
 				auto start = Clock::now();
 				for (size_t i = 0; i < ops; ++i) {
@@ -65,7 +64,7 @@ namespace benchmark {
 				}
 				times.push_back(Duration(Clock::now() - start).count());
 			}
-			
+
 			BenchmarkResult result = calculateStats("new/delete (ST Baseline)", times, ops);
 			g_st_baseline_avg_ms = result.avg_time_ms;
 			return result;
@@ -79,7 +78,7 @@ namespace benchmark {
 			std::pmr::polymorphic_allocator<LargeTestObject> alloc(&pool_resource);
 			std::vector<double> times;
 			times.reserve(10);
-			
+
 			for (int run = 0; run < 10; ++run) {
 				auto start = Clock::now();
 				for (size_t i = 0; i < ops; ++i) {
@@ -147,7 +146,7 @@ namespace benchmark {
 
 			for (int run = 0; run < 10; ++run) {
 				auto start = Clock::now();
-				
+
 				std::vector<std::shared_ptr<LargeTestObject>> objects;
 				objects.reserve(ops);
 
@@ -167,10 +166,10 @@ namespace benchmark {
 		/**
 		 * @brief Run all baseline benchmarks
 		 */
-		static void runBaselineBenchmarks(size_t ops = 1000000) {  // consistent with main_test_lockfree.cpp default
+		static void runBaselineBenchmarks(size_t ops = 1000000) { // consistent with main_test_lockfree.cpp default
 			printSectionHeader("BASELINE ALLOCATION METHODS", 1);
 			std::cout << "Operations: " << ops << "\n\n";
-			
+
 			printResult(benchmarkNew(ops));
 			printResult(benchmarkMalloc(ops));
 			printResult(benchmarkPmr(ops));

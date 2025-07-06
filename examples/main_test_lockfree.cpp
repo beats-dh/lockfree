@@ -459,7 +459,7 @@ namespace benchmark_utils {
 
 		auto start = std::chrono::high_resolution_clock::now();
 		for (int i = 0; i < 1000; ++i) {
-			auto obj = pool.acquire();
+			auto obj = pool.acquire().value();
 			if (obj) {
 				obj->writeByte(42);
 			}

@@ -4,7 +4,7 @@
  * Repository: https://github.com/beats-dh/lockfree
  * License: https://github.com/beats-dh/lockfree/blob/main/LICENSE
  * Contributors: https://github.com/beats-dh/lockfree/graphs/contributors
- * Website: 
+ * Website:
  */
 
 #pragma once
@@ -67,14 +67,18 @@ namespace benchmark {
 			writeData(str, len);
 		}
 
-		[[nodiscard]] size_t getSize() const noexcept { return m_size; }
-		[[nodiscard]] uint32_t getChecksum() const noexcept { return m_checksum; }
+		[[nodiscard]] size_t getSize() const noexcept {
+			return m_size;
+		}
+		[[nodiscard]] uint32_t getChecksum() const noexcept {
+			return m_checksum;
+		}
 
 		// Thread ID support for the pool
 		int16_t threadId;
 
 	private:
-		uint8_t m_buffer[BUFFER_SIZE]{};
+		uint8_t m_buffer[BUFFER_SIZE] {};
 		size_t m_size;
 		uint32_t m_checksum;
 	};
@@ -114,10 +118,7 @@ namespace benchmark {
 		/**
 		 * @brief Calculate statistics from timing data
 		 */
-		static BenchmarkResult calculateStats(const std::string &name,
-											const std::vector<double> &times,
-											size_t total_ops,
-											double baseline_avg_ms = 0.0) {
+		static BenchmarkResult calculateStats(const std::string &name, const std::vector<double> &times, size_t total_ops, double baseline_avg_ms = 0.0) {
 			if (times.empty()) {
 				return { name, 0, 0, 0, 0, total_ops, 0, 0, 0 };
 			}
@@ -182,7 +183,7 @@ namespace benchmark {
 		/**
 		 * @brief System warmup
 		 */
-		static void warmup(size_t ops = 20000) {  // consistent with main_test_lockfree.cpp default
+		static void warmup(size_t ops = 20000) { // consistent with main_test_lockfree.cpp default
 			std::cout << "🔥 Warming up system...\n";
 
 			std::vector<std::unique_ptr<LargeTestObject>> objects;
@@ -195,7 +196,7 @@ namespace benchmark {
 			}
 
 			// Access pattern to warm caches
-			for (auto& obj : objects) {
+			for (auto &obj : objects) {
 				volatile auto checksum = obj->getChecksum();
 				(void)checksum;
 			}
@@ -206,7 +207,7 @@ namespace benchmark {
 		/**
 		 * @brief Print section header
 		 */
-		static void printSectionHeader(const std::string& title, int section_num = 0) {
+		static void printSectionHeader(const std::string &title, int section_num = 0) {
 			std::cout << "\n";
 			if (section_num > 0) {
 				std::cout << section_num << "️⃣ ";
@@ -218,8 +219,9 @@ namespace benchmark {
 		/**
 		 * @brief Print subsection header
 		 */
-		static void printSubsectionHeader(const std::string& title) {
-			std::cout << "\n" << title << "\n";
+		static void printSubsectionHeader(const std::string &title) {
+			std::cout << "\n"
+					  << title << "\n";
 			std::cout << std::string(60, 0x2D) << "\n"; // '-' character
 		}
 
@@ -276,8 +278,8 @@ namespace benchmark {
 		/**
 		 * @brief Extract and add pool statistics to result
 		 */
-		template<typename PoolType>
-		static void addPoolStats(BenchmarkResult& result, const PoolType& pool) {
+		template <typename PoolType>
+		static void addPoolStats(BenchmarkResult &result, const PoolType &pool) {
 			if constexpr (requires { pool.get_stats(); }) {
 				auto stats = pool.get_stats();
 				result.cache_hit_rate = stats.acquires > 0 ? (stats.same_thread_hits * 100.0 / stats.acquires) : 0.0;

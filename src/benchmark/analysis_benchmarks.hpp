@@ -4,7 +4,7 @@
  * Repository: https://github.com/beats-dh/lockfree
  * License: https://github.com/beats-dh/lockfree/blob/main/LICENSE
  * Contributors: https://github.com/beats-dh/lockfree/graphs/contributors
- * Website: 
+ * Website:
  */
 
 #pragma once
@@ -67,7 +67,7 @@ namespace benchmark {
 
 				for (int cycle = 0; cycle < 10; ++cycle) {
 					for (int i = 0; i < 100; ++i) {
-						objects.push_back(pool.acquire());
+						objects.push_back(pool.acquire().value());
 					}
 
 					// Release every other object
@@ -154,7 +154,7 @@ namespace benchmark {
 
 				auto start = Clock::now();
 				for (size_t i = 0; i < test_ops; ++i) {
-					auto obj = pool.acquire();
+					auto obj = pool.acquire().value();
 					if (obj) {
 						obj->writeByte(42);
 					}
@@ -176,7 +176,7 @@ namespace benchmark {
 
 				auto start = Clock::now();
 				for (size_t i = 0; i < test_ops; ++i) {
-					auto* raw = pool.acquire();
+					auto* raw = pool.acquire().value();
 					if (raw) {
 						std::shared_ptr<LargeTestObject> obj(raw, [&pool](LargeTestObject* p) {
 							pool.release(p);
@@ -219,15 +219,17 @@ namespace benchmark {
 
 				auto start = Clock::now();
 				for (size_t i = 0; i < config_ops; ++i) {
-					auto obj = pool.acquire();
-					if (obj) obj->writeByte(42);
+					auto obj = pool.acquire().value();
+					if (obj) {
+						obj->writeByte(42);
+					}
 				}
 				auto time = Duration(Clock::now() - start).count();
 				auto stats = pool.get_stats();
 
-				results.push_back({"Pool[256,8]", time,
-					stats.same_thread_hits * 100.0 / stats.acquires,
-					(256 * sizeof(LargeTestObject)) / (1024.0 * 1024.0)});
+				results.push_back({ "Pool[256,8]", time,
+				                    stats.same_thread_hits * 100.0 / stats.acquires,
+				                    (256 * sizeof(LargeTestObject)) / (1024.0 * 1024.0) });
 			}
 
 			{
@@ -237,15 +239,17 @@ namespace benchmark {
 
 				auto start = Clock::now();
 				for (size_t i = 0; i < config_ops; ++i) {
-					auto obj = pool.acquire();
-					if (obj) obj->writeByte(42);
+					auto obj = pool.acquire().value();
+					if (obj) {
+						obj->writeByte(42);
+					}
 				}
 				auto time = Duration(Clock::now() - start).count();
 				auto stats = pool.get_stats();
 
-				results.push_back({"Pool[512,16]", time,
-					stats.same_thread_hits * 100.0 / stats.acquires,
-					(512 * sizeof(LargeTestObject)) / (1024.0 * 1024.0)});
+				results.push_back({ "Pool[512,16]", time,
+				                    stats.same_thread_hits * 100.0 / stats.acquires,
+				                    (512 * sizeof(LargeTestObject)) / (1024.0 * 1024.0) });
 			}
 
 			{
@@ -255,15 +259,17 @@ namespace benchmark {
 
 				auto start = Clock::now();
 				for (size_t i = 0; i < config_ops; ++i) {
-					auto obj = pool.acquire();
-					if (obj) obj->writeByte(42);
+					auto obj = pool.acquire().value();
+					if (obj) {
+						obj->writeByte(42);
+					}
 				}
 				auto time = Duration(Clock::now() - start).count();
 				auto stats = pool.get_stats();
 
-				results.push_back({"Pool[1024,32]", time,
-					stats.same_thread_hits * 100.0 / stats.acquires,
-					(1024 * sizeof(LargeTestObject)) / (1024.0 * 1024.0)});
+				results.push_back({ "Pool[1024,32]", time,
+				                    stats.same_thread_hits * 100.0 / stats.acquires,
+				                    (1024 * sizeof(LargeTestObject)) / (1024.0 * 1024.0) });
 			}
 
 			// Print results table
@@ -272,7 +278,7 @@ namespace benchmark {
 			std::cout << "│ Config      │ Time(ms) │ Cache(%)  │ Memory(MB) │\n";
 			std::cout << "├─────────────┼──────────┼───────────┼────────────┤\n";
 
-			for (const auto& result : results) {
+			for (const auto &result : results) {
 				std::cout << "│ " << std::left << std::setw(11) << result.config
 						  << " │ " << std::right << std::setw(8) << std::fixed << std::setprecision(2) << result.time_ms
 						  << " │ " << std::setw(9) << std::setprecision(1) << result.cache_hit_rate
@@ -338,7 +344,7 @@ namespace benchmark {
 				auto start = Clock::now();
 
 				// Create initial object from pool
-				auto original = pool.acquire();
+				auto original = pool.acquire().value();
 				if (original) {
 					original->writeString("original data");
 					original->writeUInt32(12345);
@@ -360,7 +366,7 @@ namespace benchmark {
 					// Occasionally make a copy (write operation)
 					if (i % copy_frequency == 0) {
 						// COW: acquire new object from pool for modification
-						auto copy = pool.acquire();
+						auto copy = pool.acquire().value();
 						if (copy && original) {
 							// Copy data from original (efficient with pool objects)
 							copy->writeString("original data");
@@ -395,7 +401,7 @@ namespace benchmark {
 
 				auto start = Clock::now();
 
-				auto original = pool.acquire();
+				auto original = pool.acquire().value();
 				if (original) {
 					original->writeString("original data");
 					original->writeUInt32(12345);
@@ -411,7 +417,7 @@ namespace benchmark {
 
 					if (need_copy && original) {
 						// Create new instance only when necessary
-						auto new_obj = pool.acquire();
+						auto new_obj = pool.acquire().value();
 						if (new_obj) {
 							// Efficient copy operation
 							new_obj->writeString("original data");
@@ -454,18 +460,18 @@ namespace benchmark {
 				auto start = Clock::now();
 
 				// Shared initial object
-				auto shared_original = pool.acquire();
+				auto shared_original = pool.acquire().value();
 				if (shared_original) {
 					shared_original->writeString("shared original");
 					shared_original->writeUInt32(99999);
 				}
 
 				std::vector<std::thread> threads;
-				std::atomic<size_t> total_copies{0};
+				std::atomic<size_t> total_copies { 0 };
 
 				for (size_t t = 0; t < num_threads; ++t) {
 					threads.emplace_back([&, t]() {
-						auto& local_obj = shared_original; // Start with shared object
+						auto &local_obj = shared_original; // Start with shared object
 
 						for (size_t i = 0; i < ops_per_thread; ++i) {
 							// Read operations (no copy needed)
@@ -476,7 +482,7 @@ namespace benchmark {
 
 							// Occasional write (needs copy)
 							if (i % (copy_frequency * 2) == 0) {
-								auto new_obj = pool.acquire();
+								auto new_obj = pool.acquire().value();
 								if (new_obj && local_obj) {
 									// Copy data
 									new_obj->writeString("shared original");
@@ -493,7 +499,7 @@ namespace benchmark {
 					});
 				}
 
-				for (auto& thread : threads) {
+				for (auto &thread : threads) {
 					thread.join();
 				}
 
@@ -557,7 +563,7 @@ namespace benchmark {
 				auto start = Clock::now();
 
 				for (size_t i = 0; i < regression_ops; ++i) {
-					auto obj = pool.acquire();
+					auto obj = pool.acquire().value();
 					if (obj) {
 						obj->writeByte(static_cast<uint8_t>(i % 256));
 					}
@@ -602,7 +608,7 @@ namespace benchmark {
 
 				auto start = Clock::now();
 				for (int i = 0; i < 10000; ++i) {
-					auto obj = pool.acquire();
+					auto obj = pool.acquire().value();
 					if (obj) {
 						obj->writeString("network data");
 						obj->writeUInt32(static_cast<uint32_t>(i));
@@ -630,7 +636,7 @@ namespace benchmark {
 
 				// Create long-lived objects
 				for (int i = 0; i < 100; ++i) {
-					auto obj = pool.acquire();
+					auto obj = pool.acquire().value();
 					if (obj) {
 						obj->writeString("cached data");
 						cache.push_back(obj);

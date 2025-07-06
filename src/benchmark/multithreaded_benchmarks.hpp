@@ -4,7 +4,7 @@
  * Repository: https://github.com/beats-dh/lockfree
  * License: https://github.com/beats-dh/lockfree/blob/main/LICENSE
  * Contributors: https://github.com/beats-dh/lockfree/graphs/contributors
- * Website: 
+ * Website:
  */
 
 #pragma once
@@ -19,18 +19,17 @@ namespace benchmark {
 	 */
 	class MultithreadedBenchmarks : public BenchmarkBase {
 	public:
-
 		/**
 		 * @brief Multi-threaded new/delete benchmark
 		 */
 		static BenchmarkResult benchmarkMultiThreadedNew(size_t threads, size_t ops_per_thread) {
 			std::vector<double> times;
 			times.reserve(5);
-			
+
 			for (int run = 0; run < 5; ++run) {
 				std::barrier sync_point(static_cast<std::ptrdiff_t>(threads));
 				std::vector<std::thread> workers;
-				
+
 				auto start = Clock::now();
 				for (size_t t = 0; t < threads; ++t) {
 					workers.emplace_back([&sync_point, ops_per_thread, t]() {
@@ -43,13 +42,13 @@ namespace benchmark {
 						}
 					});
 				}
-				
+
 				for (auto &w : workers) {
 					w.join();
 				}
 				times.push_back(Duration(Clock::now() - start).count());
 			}
-			
+
 			BenchmarkResult result = calculateStats("new/delete (MT Baseline)", times, threads * ops_per_thread);
 			g_mt_baseline_avg_ms[threads] = result.avg_time_ms;
 			return result;
@@ -104,26 +103,34 @@ namespace benchmark {
 					workers.emplace_back([&sync_point, &pool, ops_per_thread, t]() {
 						sync_point.arrive_and_wait();
 
-						if constexpr (std::is_pointer_v<decltype(pool.acquire())>) {
-							// Raw pointer pool
+						// CORREÇÃO: Verificamos o tipo DENTRO do std::expected
+						using ResultType = typename decltype(pool.acquire())::value_type;
+
+						if constexpr (std::is_pointer_v<ResultType>) {
+							// Caminho correto para OptimizedObjectPool (ponteiro bruto)
 							for (size_t i = 0; i < ops_per_thread; ++i) {
-								auto* obj = pool.acquire();
-								if (!obj) [[unlikely]] {
+								auto result = pool.acquire();
+								if (!result) [[unlikely]] {
 									continue;
 								}
+
+								auto* obj = result.value();
 								obj->writeString("thread data");
 								obj->writeUInt32(static_cast<uint32_t>(t * 1000 + i));
-								pool.release(obj);
+								pool.release(obj); // O release que estava faltando
 							}
 						} else {
-							// Shared pointer pool
+							// Caminho correto para SharedOptimizedObjectPool (shared_ptr)
 							for (size_t i = 0; i < ops_per_thread; ++i) {
-								auto obj_ptr = pool.acquire();
-								if (!obj_ptr) [[unlikely]] {
+								auto result = pool.acquire();
+								if (!result) [[unlikely]] {
 									continue;
 								}
+
+								auto obj_ptr = result.value();
 								obj_ptr->writeString("thread data");
 								obj_ptr->writeUInt32(static_cast<uint32_t>(t * 1000 + i));
+								// RAII cuida do release aqui
 							}
 						}
 					});
@@ -144,7 +151,8 @@ namespace benchmark {
 		 * @brief Test multi-threaded scaling for a specific thread count
 		 */
 		static void benchmarkThreadCount(size_t threads, size_t ops_per_thread) {
-			std::cout << "\n" << std::string(90, 0x2D) << "\n";
+			std::cout << "\n"
+					  << std::string(90, 0x2D) << "\n";
 			std::cout << "🧵 " << threads << " Thread" << (threads > 1 ? "s" : "")
 					  << " (" << ops_per_thread << " ops/thread, "
 					  << (threads * ops_per_thread) << " total ops):\n";
@@ -179,7 +187,7 @@ namespace benchmark {
 		/**
 		 * @brief Run complete multi-threaded scaling analysis
 		 */
-		static void runMultiThreadedScalingAnalysis(size_t base_ops = 500000) {  // consistent with main_benchmark.hpp multi_thread_base_ops
+		static void runMultiThreadedScalingAnalysis(size_t base_ops = 500000) { // consistent with main_benchmark.hpp multi_thread_base_ops
 			printSectionHeader("MULTI-THREADED SCALING ANALYSIS", 4);
 
 			auto thread_counts = generateThreadCounts();

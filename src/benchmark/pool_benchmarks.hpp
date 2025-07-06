@@ -4,7 +4,7 @@
  * Repository: https://github.com/beats-dh/lockfree
  * License: https://github.com/beats-dh/lockfree/blob/main/LICENSE
  * Contributors: https://github.com/beats-dh/lockfree/graphs/contributors
- * Website: 
+ * Website:
  */
 
 #pragma once
@@ -18,13 +18,11 @@ namespace benchmark {
 	 */
 	class PoolBenchmarks : public BenchmarkBase {
 	public:
-
 		/**
 		 * @brief Enhanced vector pool shared benchmark
 		 */
 		static BenchmarkResult benchmarkVectorPoolShared(size_t ops) {
-			using PoolType = SharedOptimizedObjectPool<LargeTestObject, 
-				lockfree_config::DEFAULT_POOL_SIZE, true>; // Stats enabled
+			using PoolType = SharedOptimizedObjectPool<LargeTestObject, lockfree_config::DEFAULT_POOL_SIZE, true>; // Stats enabled
 			PoolType pool;
 			pool.prewarm(std::min(static_cast<size_t>(128), ops));
 
@@ -33,12 +31,12 @@ namespace benchmark {
 
 			for (int run = 0; run < 10; ++run) {
 				auto start = Clock::now();
-				
+
 				std::vector<std::shared_ptr<LargeTestObject>> objects;
 				objects.reserve(ops);
 
 				for (size_t i = 0; i < ops; ++i) {
-					objects.push_back(pool.acquire());
+					objects.push_back(pool.acquire().value());
 					if (objects.back()) {
 						objects.back()->writeString("test data");
 						objects.back()->writeUInt32(static_cast<uint32_t>(i));
@@ -61,14 +59,14 @@ namespace benchmark {
 		static BenchmarkResult benchmarkPoolST(const std::string &pool_name, size_t ops, PoolType &pool) {
 			std::vector<double> times;
 			times.reserve(10);
-			
+
 			for (int run = 0; run < 10; ++run) {
 				auto start = Clock::now();
-				
+
 				if constexpr (std::is_pointer_v<decltype(pool.acquire())>) {
 					// Raw pointer pool
 					for (size_t i = 0; i < ops; ++i) {
-						auto* obj = pool.acquire();
+						auto* obj = pool.acquire().value();
 						if (!obj) [[unlikely]] {
 							continue;
 						}
@@ -79,7 +77,7 @@ namespace benchmark {
 				} else {
 					// Shared pointer pool
 					for (size_t i = 0; i < ops; ++i) {
-						auto obj_ptr = pool.acquire();
+						auto obj_ptr = pool.acquire().value();
 						if (!obj_ptr) [[unlikely]] {
 							continue;
 						}
@@ -89,7 +87,7 @@ namespace benchmark {
 				}
 				times.push_back(Duration(Clock::now() - start).count());
 			}
-			
+
 			auto result = calculateStats(pool_name + " (ST)", times, ops, g_st_baseline_avg_ms);
 			addPoolStats(result, pool);
 			return result;
@@ -131,45 +129,40 @@ namespace benchmark {
 		 */
 		static void benchmarkCacheSizes(size_t ops) {
 			printSubsectionHeader("Thread Cache Size Analysis");
-			
-			const std::vector<size_t> cache_sizes = {4, 8, 16, 32, 64};
+
+			const std::vector<size_t> cache_sizes = { 4, 8, 16, 32, 64 };
 			for (auto cache_size : cache_sizes) {
 				switch (cache_size) {
 					case 4: {
-						using PoolType = SharedOptimizedObjectPool<LargeTestObject, 512, false, 
-							std::pmr::polymorphic_allocator<LargeTestObject>, 4>;
+						using PoolType = SharedOptimizedObjectPool<LargeTestObject, 512, false, std::pmr::polymorphic_allocator<LargeTestObject>, 4>;
 						PoolType pool;
 						pool.prewarm(64);
 						printResult(benchmarkPoolST("SharedPool[Cache=4]", ops, pool));
 						break;
 					}
 					case 8: {
-						using PoolType = SharedOptimizedObjectPool<LargeTestObject, 512, false, 
-							std::pmr::polymorphic_allocator<LargeTestObject>, 8>;
+						using PoolType = SharedOptimizedObjectPool<LargeTestObject, 512, false, std::pmr::polymorphic_allocator<LargeTestObject>, 8>;
 						PoolType pool;
 						pool.prewarm(64);
 						printResult(benchmarkPoolST("SharedPool[Cache=8]", ops, pool));
 						break;
 					}
 					case 16: {
-						using PoolType = SharedOptimizedObjectPool<LargeTestObject, 512, false, 
-							std::pmr::polymorphic_allocator<LargeTestObject>, 16>;
+						using PoolType = SharedOptimizedObjectPool<LargeTestObject, 512, false, std::pmr::polymorphic_allocator<LargeTestObject>, 16>;
 						PoolType pool;
 						pool.prewarm(64);
 						printResult(benchmarkPoolST("SharedPool[Cache=16]", ops, pool));
 						break;
 					}
 					case 32: {
-						using PoolType = SharedOptimizedObjectPool<LargeTestObject, 512, false, 
-							std::pmr::polymorphic_allocator<LargeTestObject>, 32>;
+						using PoolType = SharedOptimizedObjectPool<LargeTestObject, 512, false, std::pmr::polymorphic_allocator<LargeTestObject>, 32>;
 						PoolType pool;
 						pool.prewarm(64);
 						printResult(benchmarkPoolST("SharedPool[Cache=32]", ops, pool));
 						break;
 					}
 					case 64: {
-						using PoolType = SharedOptimizedObjectPool<LargeTestObject, 512, false, 
-							std::pmr::polymorphic_allocator<LargeTestObject>, 64>;
+						using PoolType = SharedOptimizedObjectPool<LargeTestObject, 512, false, std::pmr::polymorphic_allocator<LargeTestObject>, 64>;
 						PoolType pool;
 						pool.prewarm(64);
 						printResult(benchmarkPoolST("SharedPool[Cache=64]", ops, pool));
@@ -182,7 +175,7 @@ namespace benchmark {
 		/**
 		 * @brief Run all single-threaded pool benchmarks
 		 */
-		static void runSingleThreadedPoolBenchmarks(size_t ops = 1000000) {  // consistent with main_test_lockfree.cpp default
+		static void runSingleThreadedPoolBenchmarks(size_t ops = 1000000) { // consistent with main_test_lockfree.cpp default
 			printSectionHeader("POOL vs STANDARD SHARED_PTR ANALYSIS", 2);
 			std::cout << "Operations: " << ops << "\n\n";
 
