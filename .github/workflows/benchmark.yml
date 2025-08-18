@@ -60,7 +60,7 @@ jobs:
             executable: ./lockfree_benchmark
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Install dependencies (Ubuntu)
       if: matrix.os == 'ubuntu-latest'
@@ -197,7 +197,7 @@ jobs:
     if: always()
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Download all benchmark results
       uses: actions/download-artifact@v4
