@@ -47,7 +47,7 @@ jobs:
       security-events: write
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Restore artifacts and install vcpkg
       id: vcpkg-step
@@ -111,7 +111,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Check project license
       run: |
@@ -179,7 +179,7 @@ jobs:
       security-events: write
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Run Semgrep
       uses: semgrep/semgrep-action@v1
@@ -206,7 +206,7 @@ jobs:
     if: always()
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Download all security reports
       uses: actions/download-artifact@v4
